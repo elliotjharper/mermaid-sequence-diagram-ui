@@ -65,6 +65,8 @@
     <button (click)="addAction()">Add Action</button>
     <button (click)="openReorderDialog()">Reorder Actions</button>
     <button (click)="arrangeParticipants()">Arrange Participants</button>
+    <button (click)="copyToClipboard()">Copy</button>
+    <button (click)="pasteFromClipboard()">Paste</button>
   </div>
   <div
     *ngIf="showParticipantModal()"
