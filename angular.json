@@ -41,6 +41,23 @@
               ],
               "outputHashing": "all"
             },
+            "github-pages": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "2MB",
+                  "maximumError": "5MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "20kB",
+                  "maximumError": "50kB"
+                }
+              ],
+              "outputHashing": "all",
+              "outputPath": "docs",
+              "baseHref": "/mermaid-sequence-diagram-ui/"
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,
