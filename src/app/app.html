@@ -59,8 +59,12 @@
     <button (click)="addAction()">Add Action</button>
     <button (click)="openReorderDialog()">Reorder Actions</button>
   </div>
-  <div *ngIf="showParticipantModal()" class="floating-dialog" style="left: 240px; top: 120px">
-    <div class="floating-dialog-handle" style="cursor: default">
+  <div
+    *ngIf="showParticipantModal()"
+    class="floating-dialog"
+    [ngStyle]="{ left: participantDialogLeft + 'px', top: participantDialogTop + 'px' }"
+  >
+    <div class="floating-dialog-handle" (mousedown)="onParticipantDialogHandleDown($event)">
       <span>Add Participant</span>
       <button class="close-btn" (click)="closeParticipantModal()" type="button">×</button>
     </div>

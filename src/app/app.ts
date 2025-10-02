@@ -69,6 +69,13 @@ export class App implements OnDestroy {
   showParticipantModal = signal<boolean>(false);
   participantName = signal<string>('');
 
+  // --- Draggable Add Participant dialog state and methods ---
+  participantDialogLeft = 240;
+  participantDialogTop = 120;
+  private draggingParticipantDialog = false;
+  private participantDragOffsetX = 0;
+  private participantDragOffsetY = 0;
+
   showActionModal = signal<boolean>(false);
   showReorderDialog = signal<boolean>(false);
   // Reorder dialog data
@@ -174,6 +181,8 @@ export class App implements OnDestroy {
 
   addParticipant() {
     this.participantName.set('');
+    this.participantDialogLeft = 240;
+    this.participantDialogTop = 120;
     this.showParticipantModal.set(true);
     setTimeout(() => {
       const input = document.getElementById('new') as HTMLInputElement;
@@ -432,6 +441,29 @@ export class App implements OnDestroy {
     window.removeEventListener('mouseup', this.onEditParticipantDialogDragEnd);
   };
 
+  // --- Add Participant Dialog Drag methods ---
+  onParticipantDialogHandleDown(event: MouseEvent) {
+    event.preventDefault();
+    this.draggingParticipantDialog = true;
+    this.participantDragOffsetX = event.clientX - this.participantDialogLeft;
+    this.participantDragOffsetY = event.clientY - this.participantDialogTop;
+    window.addEventListener('mousemove', this.onParticipantDialogDragMove);
+    window.addEventListener('mouseup', this.onParticipantDialogDragEnd);
+  }
+
+  onParticipantDialogDragMove = (event: MouseEvent) => {
+    if (!this.draggingParticipantDialog) return;
+    this.participantDialogLeft = event.clientX - this.participantDragOffsetX;
+    this.participantDialogTop = event.clientY - this.participantDragOffsetY;
+    this.cdr.markForCheck();
+  };
+
+  onParticipantDialogDragEnd = () => {
+    this.draggingParticipantDialog = false;
+    window.removeEventListener('mousemove', this.onParticipantDialogDragMove);
+    window.removeEventListener('mouseup', this.onParticipantDialogDragEnd);
+  };
+
   // Called from the template after diagram is rendered
   onDiagramClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -496,6 +528,13 @@ export class App implements OnDestroy {
           this.editMessageActionIndex = idx;
           this.editMessageValue.set(target.textContent?.trim() || '');
           this.showEditMessageDialog.set(true);
+          setTimeout(() => {
+            const input = document.getElementById('editMessage') as HTMLInputElement;
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          }, 0);
         }
       }
     }

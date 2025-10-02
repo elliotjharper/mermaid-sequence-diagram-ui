@@ -22,6 +22,16 @@ text.actor {
 	pointer-events: none;
 }
 
+/* Styles for clickable message text elements (action arrows) */
+text.messageText tspan[data-action-idx] {
+	cursor: pointer;
+	transition: fill 0.2s, text-decoration 0.2s;
+}
+text.messageText tspan[data-action-idx]:hover {
+	fill: #1976d2 !important;
+	text-decoration: underline;
+}
+
 body, app-root {
 	height: 100vh;
     margin: 0;
