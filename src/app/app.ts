@@ -73,12 +73,12 @@ export class App implements OnDestroy {
   // Continuous zoom methods
   startZoomIn() {
     if (this.isZooming) return;
-    
+
     // Immediate zoom on mousedown
     const currentZoom = this.zoomLevel();
     const newZoom = Math.min(this.maxZoom, currentZoom + this.continuousZoomStep);
     this.zoomLevel.set(newZoom);
-    
+
     this.isZooming = true;
     this.zoomTimer = setInterval(() => {
       const currentZoom = this.zoomLevel();
@@ -92,12 +92,12 @@ export class App implements OnDestroy {
 
   startZoomOut() {
     if (this.isZooming) return;
-    
+
     // Immediate zoom on mousedown
     const currentZoom = this.zoomLevel();
     const newZoom = Math.max(this.minZoom, currentZoom - this.continuousZoomStep);
     this.zoomLevel.set(newZoom);
-    
+
     this.isZooming = true;
     this.zoomTimer = setInterval(() => {
       const currentZoom = this.zoomLevel();
@@ -158,7 +158,7 @@ export class App implements OnDestroy {
   actionFieldBeingSet = signal<'from' | 'to'>('from');
 
   // --- Draggable Add Action dialog state and methods ---
-  actionDialogLeft = (typeof window !== 'undefined') ? (window.innerWidth - 400) / 2 : 200;
+  actionDialogLeft = typeof window !== 'undefined' ? (window.innerWidth - 400) / 2 : 200;
   actionDialogTop = 280;
   private draggingActionDialog = false;
   private dragOffsetX = 0;

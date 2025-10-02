@@ -202,23 +202,27 @@
       (click)="onDiagramClick($event)"
     >
       <div class="zoom-controls">
-        <button 
-          class="zoom-btn" 
-          [disabled]="zoomLevel() <= 0.25" 
+        <button
+          class="zoom-btn"
+          [disabled]="zoomLevel() <= 0.25"
           title="Zoom Out"
           (mousedown)="startZoomOut()"
           (mouseup)="stopZoom()"
           (mouseleave)="stopZoom()"
-        >−</button>
+        >
+          −
+        </button>
         <span class="zoom-level">{{ (zoomLevel() * 100).toFixed(0) }}%</span>
-        <button 
-          class="zoom-btn" 
-          [disabled]="zoomLevel() >= 3" 
+        <button
+          class="zoom-btn"
+          [disabled]="zoomLevel() >= 3"
           title="Zoom In"
           (mousedown)="startZoomIn()"
           (mouseup)="stopZoom()"
           (mouseleave)="stopZoom()"
-        >+</button>
+        >
+          +
+        </button>
         <button class="zoom-btn reset-zoom" (click)="resetZoom()" title="Reset Zoom">⌂</button>
       </div>
       <div class="diagram-viewport">
