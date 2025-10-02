@@ -288,7 +288,22 @@ export class App implements OnInit, OnDestroy {
     const name = this.participantName().trim();
     if (name && !this.participants.includes(name)) {
       const lines = this.mermaidText().split('\n');
-      lines.splice(1, 0, `    participant ${name}`);
+      
+      // Find the position to insert the new participant
+      // Look for the last existing participant declaration
+      let insertIndex = 1; // Default: after sequenceDiagram line
+      
+      for (let i = 1; i < lines.length; i++) {
+        const trimmed = lines[i].trim();
+        if (trimmed.startsWith('participant ')) {
+          insertIndex = i + 1; // After the last participant
+        } else if (trimmed && !trimmed.startsWith('participant ')) {
+          // If we hit a non-participant, non-empty line, stop looking
+          break;
+        }
+      }
+      
+      lines.splice(insertIndex, 0, `    participant ${name}`);
       this.mermaidText.set(lines.join('\n'));
       this.renderMermaid();
     }
@@ -824,5 +839,67 @@ export class App implements OnInit, OnDestroy {
     this.mermaidText.set(filteredLines.join('\n'));
     this.renderMermaid();
     this.closeEditMessageDialog();
+  }
+
+  arrangeParticipants() {
+    const lines = this.mermaidText().split('\n');
+    
+    // Find all explicitly declared participants
+    const declaredParticipants = new Set<string>();
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('participant ')) {
+        const participantName = trimmed.replace('participant ', '').trim();
+        declaredParticipants.add(participantName);
+      }
+    });
+    
+    // Find all participants used in actions
+    const usedParticipants = new Set<string>();
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      // Check if line contains arrows (actions)
+      if ((trimmed.includes('->') || trimmed.includes('-->') || 
+           trimmed.includes('->>') || trimmed.includes('-->>') ||
+           trimmed.includes('-x') || trimmed.includes('--x'))) {
+        
+        // Extract participant names from action lines
+        // Split by arrow types and extract participant names
+        const arrowPattern = /(->>?|-->>?|-x|--x)/;
+        const parts = trimmed.split(arrowPattern);
+        
+        if (parts.length >= 3) {
+          // Extract 'from' participant (before arrow)
+          const fromPart = parts[0].trim();
+          if (fromPart) usedParticipants.add(fromPart);
+          
+          // Extract 'to' participant (after arrow, before message)
+          const toPart = parts[2].split(':')[0].trim();
+          if (toPart) usedParticipants.add(toPart);
+        }
+      }
+    });
+    
+    // Find participants that are declared but not used in actions
+    const unusedParticipants = new Set<string>();
+    declaredParticipants.forEach(participant => {
+      if (!usedParticipants.has(participant)) {
+        unusedParticipants.add(participant);
+      }
+    });
+    
+    // Filter lines: remove participant declarations only for participants that are used in actions
+    const filteredLines = lines.filter((line) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('participant ')) {
+        const participantName = trimmed.replace('participant ', '').trim();
+        // Keep declarations for unused participants, remove for used ones
+        return unusedParticipants.has(participantName);
+      }
+      return true; // Keep all non-participant lines
+    });
+    
+    this.mermaidText.set(filteredLines.join('\n'));
+    this.renderMermaid();
   }
 }
