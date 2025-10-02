@@ -10,6 +10,7 @@
 .participant-label:hover {
 	fill: #d32f2f !important;
 }
+
 .selected-participant {
 	display: inline-block;
 	padding: 0.2em 0.5em;

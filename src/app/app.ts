@@ -396,6 +396,7 @@ export class App implements OnDestroy {
 
   patchDiagramSvg(svg: string): string {
     let patched = svg;
+    
     // Add class to <text> elements that are participant labels
     patched = patched.replace(/(<text[^>]*data-id="actor-([^"]+)"[^>]*>)([^<]+)(<\/text>)/g, (m: any, p1: any, p2: any, p3: any, p4: any) => {
       if (p1.includes('class="')) {
@@ -404,19 +405,13 @@ export class App implements OnDestroy {
         return p1.replace('<text', '<text class="participant-label"') + p3 + p4;
       }
     });
-    // Add class to <rect> elements that are actor-top
-    patched = patched.replace(/(<rect[^>]*class="[^"]*actor-top[^"]*"[^>]*data-id="actor-([^"]+)"[^>]*>)/g, (m: any, rectTag: string, name: string) => {
-      let highlight = '';
-      if (
-        (this.actionFieldBeingSet() === 'from' && name === this.actionFrom()) ||
-        (this.actionFieldBeingSet() === 'to' && name === this.actionTo())
-      ) {
-        highlight = ' participant-rect-selected';
-      }
+    
+    // Add class to <rect> elements that are actor-top or actor-bottom
+    patched = patched.replace(/(<rect[^>]*class="[^"]*actor-(top|bottom)[^"]*"[^>]*>)/g, (m: any, rectTag: string, actorType: string) => {
       if (rectTag.includes('class="')) {
-        return rectTag.replace('class="', `class="participant-rect${highlight} `);
+        return rectTag.replace('class="', 'class="participant-rect ');
       } else {
-        return rectTag.replace('<rect', `<rect class="participant-rect${highlight}"`);
+        return rectTag.replace('<rect', '<rect class="participant-rect"');
       }
     });
     // Add class and data-action-idx to message text elements (arrows)
