@@ -1,14 +1,13 @@
-import { Component, signal, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, Component, OnDestroy, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import mermaid from 'mermaid';
-
 
 @Component({
   selector: 'app-root',
   imports: [CommonModule],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
 })
 export class App implements OnDestroy {
   protected readonly title = signal('mermaid-sequence-ui');
@@ -21,7 +20,17 @@ export class App implements OnDestroy {
   editMessageValue = signal<string>('');
   editMessageActionIndex: number | null = null;
 
+  // Edit Participant dialog state
+  showEditParticipantDialog = signal<boolean>(false);
+  editParticipantValue = signal<string>('');
+  editParticipantOriginalName: string | null = null;
 
+  // --- Draggable Edit Participant dialog state and methods ---
+  editParticipantDialogLeft = 300;
+  editParticipantDialogTop = 150;
+  private draggingEditParticipantDialog = false;
+  private editParticipantDragOffsetX = 0;
+  private editParticipantDragOffsetY = 0;
 
   onHandleMouseDown(event: MouseEvent) {
     this.resizing = true;
@@ -52,7 +61,9 @@ export class App implements OnDestroy {
     this.participantName.set(value);
   }
 
-  mermaidText = signal<string>(`sequenceDiagram\n    participant Alice\n    participant Bob\n    Alice->>Bob: Hello Bob, how are you?\n    Bob-->>Alice: I am good thanks!`);
+  mermaidText = signal<string>(
+    `sequenceDiagram\n    participant Alice\n    participant Bob\n    Alice->>Bob: Hello Bob, how are you?\n    Bob-->>Alice: I am good thanks!`
+  );
   diagramSvg = signal<SafeHtml>('');
 
   showParticipantModal = signal<boolean>(false);
@@ -66,8 +77,12 @@ export class App implements OnDestroy {
   private reorderDragOverIndex: number | null = null;
 
   // Template bindings to read internal drag indices
-  get draggingReorderIndexPublic(): number | null { return this.draggingReorderIndex; }
-  get reorderDragOverIndexPublic(): number | null { return this.reorderDragOverIndex; }
+  get draggingReorderIndexPublic(): number | null {
+    return this.draggingReorderIndex;
+  }
+  get reorderDragOverIndexPublic(): number | null {
+    return this.reorderDragOverIndex;
+  }
 
   actionFrom = signal<string>('');
   actionTo = signal<string>('');
@@ -85,17 +100,17 @@ export class App implements OnDestroy {
     // Extract participants from the mermaid text
     const lines = this.mermaidText().split('\n');
     return lines
-      .filter(line => line.trim().startsWith('participant '))
-      .map(line => line.trim().replace('participant ', '').trim());
+      .filter((line) => line.trim().startsWith('participant '))
+      .map((line) => line.trim().replace('participant ', '').trim());
   }
 
   constructor(private sanitizer: DomSanitizer, private cdr: ChangeDetectorRef) {
-  mermaid.initialize({ startOnLoad: false });
-  this.renderMermaid();
-  // Global Escape key handler to close dialogs
-  window.addEventListener('keydown', this.onGlobalKeyDown);
+    mermaid.initialize({ startOnLoad: false });
+    this.renderMermaid();
+    // Global Escape key handler to close dialogs
+    window.addEventListener('keydown', this.onGlobalKeyDown);
 
-  // (edit dialog state initialized as class fields)
+    // (edit dialog state initialized as class fields)
   }
 
   ngOnDestroy(): void {
@@ -121,8 +136,13 @@ export class App implements OnDestroy {
         closed = true;
       }
 
-      if(this.showEditMessageDialog()) {
+      if (this.showEditMessageDialog()) {
         this.closeEditMessageDialog();
+        closed = true;
+      }
+
+      if (this.showEditParticipantDialog()) {
+        this.closeEditParticipantDialog();
         closed = true;
       }
 
@@ -130,7 +150,7 @@ export class App implements OnDestroy {
         ev.preventDefault();
       }
     }
-  }
+  };
 
   onTextChange(event: Event) {
     const value = (event.target as HTMLTextAreaElement).value;
@@ -146,7 +166,9 @@ export class App implements OnDestroy {
       const patched = this.patchDiagramSvg(svg);
       this.diagramSvg.set(this.sanitizer.bypassSecurityTrustHtml(patched));
     } catch (e) {
-      this.diagramSvg.set(this.sanitizer.bypassSecurityTrustHtml('<p style="color:red">Invalid Mermaid syntax</p>'));
+      this.diagramSvg.set(
+        this.sanitizer.bypassSecurityTrustHtml('<p style="color:red">Invalid Mermaid syntax</p>')
+      );
     }
   }
 
@@ -174,6 +196,63 @@ export class App implements OnDestroy {
     this.closeParticipantModal();
   }
 
+  // --- Edit Participant methods ---
+  private _openEditParticipantDialog(name: string | undefined) {
+    if (!name) return;
+    this.editParticipantOriginalName = name;
+    this.editParticipantValue.set(name);
+    this.editParticipantDialogLeft = 300;
+    this.editParticipantDialogTop = 150;
+    this.showEditParticipantDialog.set(true);
+    setTimeout(() => {
+      const input = document.getElementById('editParticipantInput') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  }
+
+  closeEditParticipantDialog() {
+    this.showEditParticipantDialog.set(false);
+    this.editParticipantOriginalName = null;
+  }
+
+  onEditParticipantInput(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.editParticipantValue.set(value);
+  }
+
+  submitEditParticipant() {
+    const newName = this.editParticipantValue().trim();
+    const originalName = this.editParticipantOriginalName;
+
+    if (!newName || !originalName || newName === originalName) {
+      this.closeEditParticipantDialog();
+      return;
+    }
+
+    // Check if new name already exists
+    if (this.participants.includes(newName)) {
+      alert('A participant with this name already exists!');
+      return;
+    }
+
+    // Update participant name in mermaidText
+    const lines = this.mermaidText().split('\n');
+    const updatedLines = lines.map((line) => {
+      // Update participant declaration
+      if (line.trim().startsWith(`participant ${originalName}`)) {
+        return line.replace(`participant ${originalName}`, `participant ${newName}`);
+      }
+      // Update in actions/messages (arrows)
+      return line.replace(new RegExp(`\\b${originalName}\\b`, 'g'), newName);
+    });
+
+    this.mermaidText.set(updatedLines.join('\n'));
+    this.renderMermaid();
+    this.closeEditParticipantDialog();
+  }
 
   addAction() {
     this.actionFrom.set('');
@@ -277,7 +356,7 @@ export class App implements OnDestroy {
   applyReorder() {
     // Map reorderItems back into mermaidText by replacing lines at recorded indices
     const lines = this.mermaidText().split('\n');
-    const actionIndices = this.reorderItems.map(it => it.idx).slice();
+    const actionIndices = this.reorderItems.map((it) => it.idx).slice();
     // Sort actionIndices ascending to know where to place
     actionIndices.sort((a, b) => a - b);
     // Replace in order: for each sorted index, take the next item from reorderItems
@@ -330,11 +409,34 @@ export class App implements OnDestroy {
     window.removeEventListener('mouseup', this.onActionDialogDragEnd);
   };
 
+  // --- Edit Participant Dialog Drag methods ---
+  onEditParticipantDialogHandleDown(event: MouseEvent) {
+    event.preventDefault();
+    this.draggingEditParticipantDialog = true;
+    this.editParticipantDragOffsetX = event.clientX - this.editParticipantDialogLeft;
+    this.editParticipantDragOffsetY = event.clientY - this.editParticipantDialogTop;
+    window.addEventListener('mousemove', this.onEditParticipantDialogDragMove);
+    window.addEventListener('mouseup', this.onEditParticipantDialogDragEnd);
+  }
+
+  onEditParticipantDialogDragMove = (event: MouseEvent) => {
+    if (!this.draggingEditParticipantDialog) return;
+    this.editParticipantDialogLeft = event.clientX - this.editParticipantDragOffsetX;
+    this.editParticipantDialogTop = event.clientY - this.editParticipantDragOffsetY;
+    this.cdr.markForCheck();
+  };
+
+  onEditParticipantDialogDragEnd = () => {
+    this.draggingEditParticipantDialog = false;
+    window.removeEventListener('mousemove', this.onEditParticipantDialogDragMove);
+    window.removeEventListener('mouseup', this.onEditParticipantDialogDragEnd);
+  };
+
   // Called from the template after diagram is rendered
   onDiagramClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
 
-    if(!target) return;
+    if (!target) return;
 
     // If Add Action dialog is open, handle participant selection
     if (this.showActionModal()) {
@@ -345,7 +447,10 @@ export class App implements OnDestroy {
         return;
       }
       // Handle clicking on participant rect
-      if (target.tagName === 'rect' && (target.classList.contains('actor-top') ||  target.classList.contains('actor-bottom'))) {
+      if (
+        target.tagName === 'rect' &&
+        (target.classList.contains('actor-top') || target.classList.contains('actor-bottom'))
+      ) {
         // Try to get the participant name
         let name = target.getAttribute('name');
         if (!name) {
@@ -354,6 +459,29 @@ export class App implements OnDestroy {
           name = text?.textContent?.trim() || '';
         }
         this._setActionParticipant(name);
+        return;
+      }
+    } else if (!this.showParticipantModal() && !this.showEditParticipantDialog()) {
+      // If no dialogs are open, handle participant editing
+      // Handle clicking on participant label text
+      if (target.classList.contains('participant-label')) {
+        const name = target.textContent?.trim();
+        this._openEditParticipantDialog(name);
+        return;
+      }
+      // Handle clicking on participant rect
+      if (
+        target.tagName === 'rect' &&
+        (target.classList.contains('actor-top') || target.classList.contains('actor-bottom'))
+      ) {
+        // Try to get the participant name
+        let name = target.getAttribute('name');
+        if (!name) {
+          // Fallback: try to find the next sibling <text> with class participant-label
+          const text = target.parentElement?.querySelector('text.participant-label');
+          name = text?.textContent?.trim() || '';
+        }
+        this._openEditParticipantDialog(name);
         return;
       }
     }
@@ -389,46 +517,65 @@ export class App implements OnDestroy {
     setTimeout(() => {
       if (this.actionFrom() && this.actionTo()) {
         const input = document.getElementById('message') as HTMLInputElement;
-        if (input) { input.focus(); }
+        if (input) {
+          input.focus();
+        }
       }
     }, 0);
   }
 
   patchDiagramSvg(svg: string): string {
     let patched = svg;
-    
+
     // Add class to <text> elements that are participant labels
-    patched = patched.replace(/(<text[^>]*data-id="actor-([^"]+)"[^>]*>)([^<]+)(<\/text>)/g, (m: any, p1: any, p2: any, p3: any, p4: any) => {
-      if (p1.includes('class="')) {
-        return p1.replace('class="', 'class="participant-label ') + p3 + p4;
-      } else {
-        return p1.replace('<text', '<text class="participant-label"') + p3 + p4;
+    patched = patched.replace(
+      /(<text[^>]*data-id="actor-([^"]+)"[^>]*>)([^<]+)(<\/text>)/g,
+      (m: any, p1: any, p2: any, p3: any, p4: any) => {
+        if (p1.includes('class="')) {
+          return p1.replace('class="', 'class="participant-label ') + p3 + p4;
+        } else {
+          return p1.replace('<text', '<text class="participant-label"') + p3 + p4;
+        }
       }
-    });
-    
+    );
+
     // Add class to <rect> elements that are actor-top or actor-bottom
-    patched = patched.replace(/(<rect[^>]*class="[^"]*actor-(top|bottom)[^"]*"[^>]*>)/g, (m: any, rectTag: string, actorType: string) => {
-      if (rectTag.includes('class="')) {
-        return rectTag.replace('class="', 'class="participant-rect ');
-      } else {
-        return rectTag.replace('<rect', '<rect class="participant-rect"');
+    patched = patched.replace(
+      /(<rect[^>]*class="[^"]*actor-(top|bottom)[^"]*"[^>]*>)/g,
+      (m: any, rectTag: string, actorType: string) => {
+        if (rectTag.includes('class="')) {
+          return rectTag.replace('class="', 'class="participant-rect ');
+        } else {
+          return rectTag.replace('<rect', '<rect class="participant-rect"');
+        }
       }
-    });
+    );
     // Add class and data-action-idx to message text elements (arrows)
     // This regex matches <text ...>message</text> for arrows
     let actionIdx = 0;
-    patched = patched.replace(/(<text[^>]*>)([^<]+)(<\/text>)/g, (m: any, p1: any, p2: any, p3: any) => {
-      // Only patch if this is likely a message (not a participant label)
-      if (p1.includes('participant-label')) return m;
-      // Heuristic: message text is not a number and not empty
-      if (/^\s*\d+\s*$/.test(p2) || !p2.trim()) return m;
-      // Add class and data-action-idx
-      if (p1.includes('class="')) {
-        return p1.replace('class="', `class="messageText `) + `<tspan data-action-idx="${actionIdx++}">${p2}</tspan>` + p3;
-      } else {
-        return p1.replace('<text', `<text class="messageText"`) + `<tspan data-action-idx="${actionIdx++}">${p2}</tspan>` + p3;
+    patched = patched.replace(
+      /(<text[^>]*>)([^<]+)(<\/text>)/g,
+      (m: any, p1: any, p2: any, p3: any) => {
+        // Only patch if this is likely a message (not a participant label)
+        if (p1.includes('participant-label')) return m;
+        // Heuristic: message text is not a number and not empty
+        if (/^\s*\d+\s*$/.test(p2) || !p2.trim()) return m;
+        // Add class and data-action-idx
+        if (p1.includes('class="')) {
+          return (
+            p1.replace('class="', `class="messageText `) +
+            `<tspan data-action-idx="${actionIdx++}">${p2}</tspan>` +
+            p3
+          );
+        } else {
+          return (
+            p1.replace('<text', `<text class="messageText"`) +
+            `<tspan data-action-idx="${actionIdx++}">${p2}</tspan>` +
+            p3
+          );
+        }
       }
-    });
+    );
     return patched;
   }
 
