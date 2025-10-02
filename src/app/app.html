@@ -201,7 +201,31 @@
       [ngStyle]="{ width: 100 - editorWidth() + '%' }"
       (click)="onDiagramClick($event)"
     >
-      <div [innerHTML]="diagramSvg()"></div>
+      <div class="zoom-controls">
+        <button 
+          class="zoom-btn" 
+          [disabled]="zoomLevel() <= 0.25" 
+          title="Zoom Out"
+          (mousedown)="startZoomOut()"
+          (mouseup)="stopZoom()"
+          (mouseleave)="stopZoom()"
+        >−</button>
+        <span class="zoom-level">{{ (zoomLevel() * 100).toFixed(0) }}%</span>
+        <button 
+          class="zoom-btn" 
+          [disabled]="zoomLevel() >= 3" 
+          title="Zoom In"
+          (mousedown)="startZoomIn()"
+          (mouseup)="stopZoom()"
+          (mouseleave)="stopZoom()"
+        >+</button>
+        <button class="zoom-btn reset-zoom" (click)="resetZoom()" title="Reset Zoom">⌂</button>
+      </div>
+      <div class="diagram-viewport">
+        <div class="diagram-container" [ngStyle]="{ transform: 'scale(' + zoomLevel() + ')' }">
+          <div [innerHTML]="diagramSvg()"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

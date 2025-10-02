@@ -15,6 +15,15 @@ export class App implements OnDestroy {
   editorWidth = signal<number>(30);
   private resizing = false;
 
+  // Zoom functionality
+  zoomLevel = signal<number>(1);
+  private readonly minZoom = 0.25;
+  private readonly maxZoom = 3;
+  private readonly continuousZoomStep = 0.05;
+  private readonly continuousZoomInterval = 150; // milliseconds
+  private zoomTimer: any = null;
+  private isZooming = false;
+
   // Edit Action Message dialog state
   showEditMessageDialog = signal<boolean>(false);
   editMessageValue = signal<string>('');
@@ -55,6 +64,58 @@ export class App implements OnDestroy {
     window.removeEventListener('mousemove', this.onHandleMouseMove);
     window.removeEventListener('mouseup', this.onHandleMouseUp);
   };
+
+  // --- Zoom functionality ---
+  resetZoom() {
+    this.zoomLevel.set(1);
+  }
+
+  // Continuous zoom methods
+  startZoomIn() {
+    if (this.isZooming) return;
+    
+    // Immediate zoom on mousedown
+    const currentZoom = this.zoomLevel();
+    const newZoom = Math.min(this.maxZoom, currentZoom + this.continuousZoomStep);
+    this.zoomLevel.set(newZoom);
+    
+    this.isZooming = true;
+    this.zoomTimer = setInterval(() => {
+      const currentZoom = this.zoomLevel();
+      const newZoom = Math.min(this.maxZoom, currentZoom + this.continuousZoomStep);
+      this.zoomLevel.set(newZoom);
+      if (newZoom >= this.maxZoom) {
+        this.stopZoom();
+      }
+    }, this.continuousZoomInterval);
+  }
+
+  startZoomOut() {
+    if (this.isZooming) return;
+    
+    // Immediate zoom on mousedown
+    const currentZoom = this.zoomLevel();
+    const newZoom = Math.max(this.minZoom, currentZoom - this.continuousZoomStep);
+    this.zoomLevel.set(newZoom);
+    
+    this.isZooming = true;
+    this.zoomTimer = setInterval(() => {
+      const currentZoom = this.zoomLevel();
+      const newZoom = Math.max(this.minZoom, currentZoom - this.continuousZoomStep);
+      this.zoomLevel.set(newZoom);
+      if (newZoom <= this.minZoom) {
+        this.stopZoom();
+      }
+    }, this.continuousZoomInterval);
+  }
+
+  stopZoom() {
+    if (this.zoomTimer) {
+      clearInterval(this.zoomTimer);
+      this.zoomTimer = null;
+    }
+    this.isZooming = false;
+  }
 
   onNameChange(event: Event) {
     const value = (event.target as HTMLInputElement).value;
@@ -97,8 +158,8 @@ export class App implements OnDestroy {
   actionFieldBeingSet = signal<'from' | 'to'>('from');
 
   // --- Draggable Add Action dialog state and methods ---
-  actionDialogLeft = 200;
-  actionDialogTop = 100;
+  actionDialogLeft = (typeof window !== 'undefined') ? (window.innerWidth - 400) / 2 : 200;
+  actionDialogTop = 280;
   private draggingActionDialog = false;
   private dragOffsetX = 0;
   private dragOffsetY = 0;
@@ -122,6 +183,7 @@ export class App implements OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('keydown', this.onGlobalKeyDown);
+    this.stopZoom(); // Clean up zoom timer
   }
 
   private onGlobalKeyDown = (ev: KeyboardEvent) => {
@@ -268,8 +330,9 @@ export class App implements OnDestroy {
     this.actionTo.set('');
     this.actionMessage.set('');
     this.actionFieldBeingSet.set('from');
-    this.actionDialogLeft = 200;
-    this.actionDialogTop = 100;
+    // Center horizontally and position lower to avoid participant rectangles
+    this.actionDialogLeft = (window.innerWidth - 400) / 2; // Assuming dialog width ~400px
+    this.actionDialogTop = 280; // 30px below participant rectangles (estimated at ~250px)
     this.showActionModal.set(true);
   }
   setActionField(field: 'from' | 'to') {

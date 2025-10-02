@@ -129,8 +129,81 @@ h1 {
 	border-radius: 0 4px 4px 0;
 	background: #fff;
 	padding: 1rem;
-	overflow: auto;
+	overflow: hidden;
 	box-sizing: border-box;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Zoom controls */
+.zoom-controls {
+	position: absolute;
+	top: 1rem;
+	right: 1rem;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: rgba(255, 255, 255, 0.95);
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	padding: 0.5rem;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	z-index: 10;
+}
+
+.zoom-btn {
+	background: #f5f5f5;
+	border: 1px solid #d0d0d0;
+	border-radius: 4px;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	font-size: 16px;
+	font-weight: bold;
+	transition: all 0.2s;
+	user-select: none;
+}
+
+.zoom-btn:hover:not(:disabled) {
+	background: #e0e0e0;
+	border-color: #b0b0b0;
+}
+
+.zoom-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.zoom-level {
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: #555;
+	min-width: 50px;
+	text-align: center;
+}
+
+.reset-zoom {
+	font-size: 14px;
+}
+
+/* Diagram container with transform origin at top-left */
+.diagram-viewport {
+	flex: 1;
+	overflow: auto;
+	position: relative;
+	margin-top: 1rem;
+}
+
+.diagram-container {
+	transform-origin: top left;
+	transition: transform 0.2s ease;
+	display: inline-block;
+	min-width: 100%;
+	width: 100%;
 }
 
 
