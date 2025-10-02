@@ -35,16 +35,18 @@
     <span>Edit Participant</span>
     <button class="close-btn" (click)="closeEditParticipantDialog()" type="button">×</button>
   </div>
-  <form (submit)="$event.preventDefault(); submitEditParticipant()">
-    <label for="editParticipantInput">Participant name:</label>
-    <input
-      id="editParticipantInput"
-      type="text"
-      [value]="editParticipantValue()"
-      (input)="onEditParticipantInput($event)"
-      name="editParticipantInput"
-      autocomplete="off"
-    />
+  <form class="modal-form" (submit)="$event.preventDefault(); submitEditParticipant()">
+    <div class="form-field">
+      <label for="editParticipantInput">Participant name:</label>
+      <input
+        id="editParticipantInput"
+        type="text"
+        [value]="editParticipantValue()"
+        (input)="onEditParticipantInput($event)"
+        name="editParticipantInput"
+        autocomplete="off"
+      />
+    </div>
     <div class="modal-actions">
       <button type="submit">Save</button>
       <button type="button" (click)="closeEditParticipantDialog()">Cancel</button>
@@ -68,16 +70,18 @@
       <span>Add Participant</span>
       <button class="close-btn" (click)="closeParticipantModal()" type="button">×</button>
     </div>
-    <form (submit)="$event.preventDefault(); submitParticipant()">
-      <label for="new">Participant name:</label>
-      <input
-        id="new"
-        type="text"
-        [value]="participantName()"
-        (input)="onNameChange($event)"
-        name="new"
-        autocomplete="off"
-      />
+    <form class="modal-form" (submit)="$event.preventDefault(); submitParticipant()">
+      <div class="form-field">
+        <label for="new">Participant name:</label>
+        <input
+          id="new"
+          type="text"
+          [value]="participantName()"
+          (input)="onNameChange($event)"
+          name="new"
+          autocomplete="off"
+        />
+      </div>
       <div class="modal-actions">
         <button type="submit">Add</button>
         <button type="button" (click)="closeParticipantModal()">Cancel</button>
