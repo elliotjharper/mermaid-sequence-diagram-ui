@@ -1,0 +1,108 @@
+  <div *ngIf="showEditMessageDialog()" class="floating-dialog" style="left: 320px; top: 180px; min-width:340px;">
+    <div class="floating-dialog-handle" style="cursor: default;">
+      <span>Edit Action Message</span>
+      <button class="close-btn" (click)="closeEditMessageDialog()" type="button">×</button>
+    </div>
+    <form class="action-form" (submit)="$event.preventDefault(); submitEditMessage();">
+      <div class="action-message-row">
+        <label for="editMessage">Message:</label>
+        <input id="editMessage" type="text" [value]="editMessageValue()" (input)="onEditMessageInput($event)" name="editMessage" autocomplete="off" />
+      </div>
+      <div class="modal-actions action-modal-actions">
+        <button type="submit">Save</button>
+        <button type="button" (click)="closeEditMessageDialog()">Cancel</button>
+      </div>
+    </form>
+  </div>
+<div class="container">
+  <h1>Mermaid Sequence Diagram Editor</h1>
+  <div class="controls">
+    <button (click)="addParticipant()">Add Participant</button>
+    <button (click)="addAction()">Add Action</button>
+    <button (click)="openReorderDialog()">Reorder Actions</button>
+  </div>
+  <div *ngIf="showParticipantModal()" class="floating-dialog" style="left: 240px; top: 120px;">
+    <div class="floating-dialog-handle" style="cursor: default;">
+      <span>Add Participant</span>
+      <button class="close-btn" (click)="closeParticipantModal()" type="button">×</button>
+    </div>
+    <form (submit)="$event.preventDefault(); submitParticipant();">
+      <label for="new">Participant name:</label>
+      <input id="new" type="text" [value]="participantName()" (input)="onNameChange($event)" name="new" autocomplete="off" />
+      <div class="modal-actions">
+        <button type="submit">Add</button>
+        <button type="button" (click)="closeParticipantModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <div *ngIf="showActionModal()" class="floating-dialog" [ngStyle]="{ left: actionDialogLeft + 'px', top: actionDialogTop + 'px' }">
+    <div class="floating-dialog-handle" (mousedown)="onActionDialogHandleDown($event)">
+      <span>Add Action</span>
+      <button class="close-btn" (click)="closeActionModal()" type="button">×</button>
+    </div>
+    <form class="action-form" (submit)="$event.preventDefault(); submitAction();">
+      <div class="action-fields-row">
+        <div class="action-field">
+          <label>From:</label>
+          <span class="selected-participant" [class.active]="actionFieldBeingSet() === 'from'" (click)="setActionField('from')">
+            {{ actionFrom() || 'Click a name in the diagram' }}
+          </span>
+        </div>
+        <div class="action-field">
+          <label>To:</label>
+          <span class="selected-participant" [class.active]="actionFieldBeingSet() === 'to'" (click)="setActionField('to')">
+            {{ actionTo() || 'Click a name in the diagram' }}
+          </span>
+        </div>
+      </div>
+      <div class="action-message-row">
+        <label for="message">Message:</label>
+        <input id="message" type="text" [value]="actionMessage()" (input)="onActionMessageChange($event)" name="message" autocomplete="off" />
+      </div>
+      <div class="modal-actions action-modal-actions">
+        <button type="submit">Add</button>
+        <button type="button" (click)="closeActionModal()">Cancel</button>
+      </div>
+    </form>
+    <div class="modal-hint">Click a participant name in the diagram to set <b>{{ actionFieldBeingSet() }}</b>.</div>
+  </div>
+
+  <div *ngIf="showReorderDialog()" class="floating-dialog" style="left: 220px; top: 140px; width: 420px;">
+    <div class="floating-dialog-handle" style="cursor: default;">
+      <span>Reorder Actions</span>
+      <button class="close-btn" (click)="closeReorderDialog()" type="button">×</button>
+    </div>
+    <div class="reorder-body">
+      <p class="modal-hint">Drag items to reorder the actions. Confirm to update the diagram source.</p>
+      <ul class="reorder-list">
+    <li *ngFor="let item of reorderItems; let i = index" draggable="true"
+      (dragstart)="onReorderDragStart($event, i)"
+      (dragover)="onReorderDragOver($event, i)"
+      (dragend)="onReorderDragEnd($event)"
+      (drop)="onReorderDrop($event)"
+  [class.dragging]="isReorderDragging() && (i === draggingReorderIndexPublic)"
+  [class.over]="(reorderDragOverIndexPublic === i)">
+          <span class="reorder-handle">☰</span>
+          <span class="reorder-text">{{ item.text }}</span>
+        </li>
+        <!-- explicit end-drop target to make appending easier (only visible while dragging) -->
+  <li *ngIf="isReorderDragging()" class="reorder-end" (dragover)="onReorderDragOver($event, reorderItems.length)" (drop)="onReorderDrop($event)" [class.dragover]="reorderDragOverIndexPublic === reorderItems.length">
+          <span class="reorder-text">Drop here to move to end</span>
+        </li>
+      </ul>
+      <div class="modal-actions">
+        <button type="button" (click)="applyReorder()">Apply</button>
+        <button type="button" (click)="closeReorderDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="split">
+  <textarea class="editor" [ngStyle]="{ width: editorWidth() + '%' }" [value]="mermaidText()" (input)="onTextChange($event)"></textarea>
+  <div class="split-handle" (mousedown)="onHandleMouseDown($event)"></div>
+  <div class="preview" [ngStyle]="{ width: (100 - editorWidth()) + '%' }" (click)="onDiagramClick($event)">
+      <div [innerHTML]="diagramSvg()"></div>
+    </div>
+  </div>
+</div>
