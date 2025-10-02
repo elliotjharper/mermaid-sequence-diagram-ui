@@ -22,6 +22,7 @@
     <div class="modal-actions action-modal-actions">
       <button type="submit">Save</button>
       <button type="button" (click)="closeEditMessageDialog()">Cancel</button>
+      <button type="button" class="delete-btn" (click)="deleteAction()">Delete Action</button>
     </div>
   </form>
 </div>
@@ -50,6 +51,9 @@
     <div class="modal-actions">
       <button type="submit">Save</button>
       <button type="button" (click)="closeEditParticipantDialog()">Cancel</button>
+      <button type="button" class="delete-btn" (click)="deleteParticipant()">
+        Delete Participant
+      </button>
     </div>
   </form>
 </div>

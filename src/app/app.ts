@@ -325,6 +325,52 @@ export class App implements OnDestroy {
     this.closeEditParticipantDialog();
   }
 
+  deleteParticipant() {
+    const participantToDelete = this.editParticipantOriginalName;
+    if (!participantToDelete) return;
+
+    // Remove participant and all actions involving this participant
+    const lines = this.mermaidText().split('\n');
+    const filteredLines = lines.filter((line) => {
+      const trimmedLine = line.trim();
+
+      // Skip empty lines
+      if (!trimmedLine) return true;
+
+      // Remove participant declaration
+      if (trimmedLine.startsWith(`participant ${participantToDelete}`)) {
+        return false;
+      }
+
+      // Remove actions/messages involving this participant
+      // Check if the line contains arrows (any type of Mermaid arrow)
+      const hasArrow =
+        trimmedLine.includes('->') ||
+        trimmedLine.includes('-->') ||
+        trimmedLine.includes('->>') ||
+        trimmedLine.includes('-->>') ||
+        trimmedLine.includes('-x') ||
+        trimmedLine.includes('--x');
+
+      if (hasArrow) {
+        // Use regex to match participant names more accurately
+        // This will match the participant name as a whole word in arrow syntax
+        const participantRegex = new RegExp(
+          `\\b${participantToDelete.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`
+        );
+        if (participantRegex.test(trimmedLine)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    this.mermaidText.set(filteredLines.join('\n'));
+    this.renderMermaid();
+    this.closeEditParticipantDialog();
+  }
+
   addAction() {
     this.actionFrom.set('');
     this.actionTo.set('');
@@ -713,6 +759,41 @@ export class App implements OnDestroy {
       }
     }
     this.mermaidText.set(lines.join('\n'));
+    this.renderMermaid();
+    this.closeEditMessageDialog();
+  }
+
+  deleteAction() {
+    if (this.editMessageActionIndex == null) return;
+
+    const lines = this.mermaidText().split('\n');
+    const filteredLines = [];
+    let actionIdx = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+
+      // Check if this is an action line (arrows with ':')
+      if (
+        (trimmed.includes('->') ||
+          trimmed.includes('-->') ||
+          trimmed.includes('->>') ||
+          trimmed.includes('-->>')) &&
+        trimmed.includes(':')
+      ) {
+        if (actionIdx === this.editMessageActionIndex) {
+          // Skip this line (delete the action)
+          actionIdx++;
+          continue;
+        }
+        actionIdx++;
+      }
+
+      // Keep all other lines
+      filteredLines.push(lines[i]);
+    }
+
+    this.mermaidText.set(filteredLines.join('\n'));
     this.renderMermaid();
     this.closeEditMessageDialog();
   }
