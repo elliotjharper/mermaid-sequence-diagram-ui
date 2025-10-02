@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnDestroy, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, signal, effect } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import mermaid from 'mermaid';
 
@@ -9,7 +9,7 @@ import mermaid from 'mermaid';
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
-export class App implements OnDestroy {
+export class App implements OnInit, OnDestroy {
   protected readonly title = signal('mermaid-sequence-ui');
 
   editorWidth = signal<number>(30);
@@ -178,7 +178,35 @@ export class App implements OnDestroy {
     // Global Escape key handler to close dialogs
     window.addEventListener('keydown', this.onGlobalKeyDown);
 
+    // Save to localStorage whenever mermaidText changes
+    effect(() => {
+      const text = this.mermaidText();
+      this.saveToLocalStorage(text);
+    });
+
     // (edit dialog state initialized as class fields)
+  }
+
+  ngOnInit() {
+    // Load from localStorage on initialization if available
+    const savedText = this.loadFromLocalStorage();
+    if (savedText) {
+      this.mermaidText.set(savedText);
+      this.renderMermaid();
+    }
+  }
+
+  private loadFromLocalStorage(): string | null {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem('mermaid-sequence-diagram-text');
+    }
+    return null;
+  }
+
+  private saveToLocalStorage(text: string): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('mermaid-sequence-diagram-text', text);
+    }
   }
 
   ngOnDestroy(): void {

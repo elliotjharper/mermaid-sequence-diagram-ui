@@ -56,7 +56,7 @@
               ],
               "outputHashing": "all",
               "outputPath": "docs",
-              "baseHref": "/mermaid-sequence-diagram-ui/"
+              "baseHref": "/mermaid-sequence-diagram-ui/browser/"
             },
             "development": {
               "optimization": false,
