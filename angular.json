@@ -41,6 +41,24 @@
               ],
               "outputHashing": "all"
             },
+            "electron": {
+              "optimization": true,
+              "outputHashing": "all",
+              "sourceMap": false,
+              "extractLicenses": true,
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "2MB",
+                  "maximumError": "5MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "20kB",
+                  "maximumError": "50kB"
+                }
+              ]
+            },
             "github-pages": {
               "budgets": [
                 {

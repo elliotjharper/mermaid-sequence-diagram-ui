@@ -10,8 +10,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-    },
-    icon: path.join(__dirname, 'dist/mermaid-sequence-ui/browser/favicon.ico')
+    }
   });
 
   // Load the Angular app
