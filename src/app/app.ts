@@ -29,6 +29,13 @@ export class App implements OnInit, OnDestroy {
   editMessageValue = signal<string>('');
   editMessageActionIndex: number | null = null;
 
+  // --- Draggable Edit Action Message dialog state ---
+  editMessageDialogLeft = 320;
+  editMessageDialogTop = 180;
+  private draggingEditMessageDialog = false;
+  private editMessageDragOffsetX = 0;
+  private editMessageDragOffsetY = 0;
+
   // Edit Participant dialog state
   showEditParticipantDialog = signal<boolean>(false);
   editParticipantValue = signal<string>('');
@@ -591,6 +598,29 @@ export class App implements OnInit, OnDestroy {
     this.draggingEditParticipantDialog = false;
     window.removeEventListener('mousemove', this.onEditParticipantDialogDragMove);
     window.removeEventListener('mouseup', this.onEditParticipantDialogDragEnd);
+  };
+
+  // --- Edit Action Message Dialog Drag methods ---
+  onEditMessageDialogHandleDown(event: MouseEvent) {
+    event.preventDefault();
+    this.draggingEditMessageDialog = true;
+    this.editMessageDragOffsetX = event.clientX - this.editMessageDialogLeft;
+    this.editMessageDragOffsetY = event.clientY - this.editMessageDialogTop;
+    window.addEventListener('mousemove', this.onEditMessageDialogDragMove);
+    window.addEventListener('mouseup', this.onEditMessageDialogDragEnd);
+  }
+
+  onEditMessageDialogDragMove = (event: MouseEvent) => {
+    if (!this.draggingEditMessageDialog) return;
+    this.editMessageDialogLeft = event.clientX - this.editMessageDragOffsetX;
+    this.editMessageDialogTop = event.clientY - this.editMessageDragOffsetY;
+    this.cdr.markForCheck();
+  };
+
+  onEditMessageDialogDragEnd = () => {
+    this.draggingEditMessageDialog = false;
+    window.removeEventListener('mousemove', this.onEditMessageDialogDragMove);
+    window.removeEventListener('mouseup', this.onEditMessageDialogDragEnd);
   };
 
   // --- Add Participant Dialog Drag methods ---

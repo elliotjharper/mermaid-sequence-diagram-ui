@@ -1,9 +1,10 @@
 <div
   *ngIf="showEditMessageDialog()"
   class="floating-dialog"
-  style="left: 320px; top: 180px; min-width: 340px"
+  [ngStyle]="{ left: editMessageDialogLeft + 'px', top: editMessageDialogTop + 'px' }"
+  style="min-width: 340px"
 >
-  <div class="floating-dialog-handle" style="cursor: default">
+  <div class="floating-dialog-handle" (mousedown)="onEditMessageDialogHandleDown($event)">
     <span>Edit Action Message</span>
     <button class="close-btn" (click)="closeEditMessageDialog()" type="button">×</button>
   </div>
