@@ -1,7 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, effect, OnDestroy, OnInit, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, signal, untracked } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import mermaid from 'mermaid';
+import { patchDiagramSvg } from './patch-diagram-svg';
+import {
+  createDocument,
+  Document,
+  loadStorageState,
+  updateActiveDocument,
+  updateDocument,
+} from './storage.service';
 
 @Component({
   selector: 'app-root',
@@ -25,37 +33,221 @@ export class App implements OnInit, OnDestroy {
   private isZooming = false;
 
   // Edit Action Message dialog state
-  showEditMessageDialog = signal<boolean>(false);
-  editMessageValue = signal<string>('');
-  editMessageActionIndex: number | null = null;
+  public showEditMessageDialog = signal<boolean>(false);
+  public editMessageValue = signal<string>('');
+  public editMessageActionIndex: number | null = null;
 
   // --- Draggable Edit Action Message dialog state ---
-  editMessageDialogLeft = 320;
-  editMessageDialogTop = 180;
+  public editMessageDialogLeft = 320;
+  public editMessageDialogTop = 180;
   private draggingEditMessageDialog = false;
   private editMessageDragOffsetX = 0;
   private editMessageDragOffsetY = 0;
 
   // Edit Participant dialog state
-  showEditParticipantDialog = signal<boolean>(false);
-  editParticipantValue = signal<string>('');
-  editParticipantOriginalName: string | null = null;
+  public showEditParticipantDialog = signal<boolean>(false);
+  public editParticipantValue = signal<string>('');
+  public editParticipantOriginalName: string | null = null;
 
   // --- Draggable Edit Participant dialog state and methods ---
-  editParticipantDialogLeft = 300;
-  editParticipantDialogTop = 150;
+  public editParticipantDialogLeft = 300;
+  public editParticipantDialogTop = 150;
   private draggingEditParticipantDialog = false;
   private editParticipantDragOffsetX = 0;
   private editParticipantDragOffsetY = 0;
 
-  onHandleMouseDown(event: MouseEvent) {
+  public mermaidText = signal<string>(
+    `sequenceDiagram\n    participant Alice\n    participant Bob\n    Alice->>Bob: Hello Bob, how are you?\n    Bob-->>Alice: I am good thanks!`
+  );
+  public diagramSvg = signal<SafeHtml>('');
+
+  // Document management
+  public documents = signal<Document[]>([]);
+  public activeDocumentId = signal<string | null>(null);
+  public showDocumentSelector = signal<boolean>(false);
+  public editingDocumentId: string | null = null;
+  public editingDocumentName = signal<string>('');
+
+  public activeDocument(): Document | null {
+    const docId = this.activeDocumentId();
+    return this.documents().find((d) => d.id === docId) || null;
+  }
+
+  public showParticipantModal = signal<boolean>(false);
+  public participantName = signal<string>('');
+
+  // --- Draggable Add Participant dialog state and methods ---
+  public participantDialogLeft = 240;
+  public participantDialogTop = 120;
+  private draggingParticipantDialog = false;
+  private participantDragOffsetX = 0;
+  private participantDragOffsetY = 0;
+
+  public showActionModal = signal<boolean>(false);
+  public showReorderDialog = signal<boolean>(false);
+  // Reorder dialog data
+  public reorderItems: Array<{ idx: number; text: string; raw: string }> = [];
+  protected draggingReorderIndex: number | null = null;
+  protected reorderDragOverIndex: number | null = null;
+
+  // --- Draggable Reorder Dialog state ---
+  public reorderDialogLeft = 220;
+  public reorderDialogTop = 140;
+  private draggingReorderDialog = false;
+  private reorderDialogDragOffsetX = 0;
+  private reorderDialogDragOffsetY = 0;
+
+  public actionFrom = signal<string>('');
+  public actionTo = signal<string>('');
+  public actionMessage = signal<string>('');
+  public actionFieldBeingSet = signal<'from' | 'to'>('from');
+
+  // --- Draggable Add Action dialog state and methods ---
+  public actionDialogLeft = typeof window !== 'undefined' ? (window.innerWidth - 400) / 2 : 200;
+  public actionDialogTop = 280;
+  private draggingActionDialog = false;
+  private dragOffsetX = 0;
+  private dragOffsetY = 0;
+
+  constructor(private sanitizer: DomSanitizer, private cdr: ChangeDetectorRef) {
+    mermaid.initialize({ startOnLoad: false });
+
+    this.loadAndApplyStorageState();
+
+    // Global Escape key handler to close dialogs
+    window.addEventListener('keydown', this.onGlobalKeyDown);
+
+    // Save to storage whenever mermaidText changes
+    // effect(() => {
+    //   const text = this.mermaidText();
+    //   this.saveActiveDocument(text);
+    // });
+
+    // (edit dialog state initialized as class fields)
+  }
+
+  ngOnInit() {
+    // Already loaded in constructor
+  }
+
+  public participants(): string[] {
+    // Extract participants from the mermaid text
+    const lines = this.mermaidText().split('\n');
+    return lines
+      .filter((line) => line.trim().startsWith('participant '))
+      .map((line) => line.trim().replace('participant ', '').trim());
+  }
+
+  // Document management methods
+  private loadAndApplyStorageState(): void {
+    // Load documents from storage
+    const storageState = loadStorageState();
+    this.documents.set(storageState.documents);
+    this.activeDocumentId.set(storageState.activeDocumentId);
+
+    // Set the mermaidText from active document
+    const activeDoc = this.activeDocument();
+    if (activeDoc) {
+      untracked(() => {
+        this.mermaidText.set(activeDoc.content);
+        this.renderMermaid();
+      });
+    }
+  }
+
+  private saveActiveDocument(content: string): void {
+    const activeDoc = this.activeDocument();
+    if (!activeDoc) return;
+
+    updateDocument({ ...activeDoc, content });
+    this.loadAndApplyStorageState();
+  }
+
+  public switchDocument(docId: string): void {
+    updateActiveDocument(docId);
+    this.loadAndApplyStorageState();
+    this.showDocumentSelector.set(false);
+  }
+
+  public createNewDocument(): void {
+    createDocument('Untitled Diagram');
+    this.loadAndApplyStorageState();
+  }
+
+  public startRenamingDocument(docId: string): void {
+    const doc = this.documents().find((d) => d.id === docId);
+    if (!doc) return;
+
+    this.editingDocumentId = docId;
+    this.editingDocumentName.set(doc.name);
+    setTimeout(() => {
+      const input = document.getElementById('docNameInput') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  }
+
+  public cancelRenamingDocument(): void {
+    this.editingDocumentId = null;
+    this.editingDocumentName.set('');
+  }
+
+  public saveDocumentName(): void {
+    if (!this.editingDocumentId) return;
+
+    const newName = this.editingDocumentName().trim();
+    if (!newName) {
+      this.cancelRenamingDocument();
+      return;
+    }
+
+    const targetDoc = this.documents().find((document) => document.id === this.editingDocumentId);
+    if (!targetDoc) {
+      throw new Error('Cannot find the doc that we are trying to rename');
+    }
+    const updatedDocument = {
+      ...targetDoc,
+      name: newName,
+    };
+    updateDocument(updatedDocument);
+    this.loadAndApplyStorageState();
+
+    this.cancelRenamingDocument();
+  }
+
+  public deleteDocument(docId: string): void {
+    if (!confirm('Are you sure you want to delete this document?')) {
+      return;
+    }
+
+    this.deleteDocument(docId);
+    this.loadAndApplyStorageState();
+  }
+
+  public toggleDocumentSelector(): void {
+    this.showDocumentSelector.set(!this.showDocumentSelector());
+  }
+
+  public onDocumentNameInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.editingDocumentName.set(value);
+  }
+
+  public ngOnDestroy(): void {
+    window.removeEventListener('keydown', this.onGlobalKeyDown);
+    this.stopZoom(); // Clean up zoom timer
+  }
+
+  public onHandleMouseDown(event: MouseEvent) {
     this.resizing = true;
     document.body.style.cursor = 'ew-resize';
     window.addEventListener('mousemove', this.onHandleMouseMove);
     window.addEventListener('mouseup', this.onHandleMouseUp);
   }
 
-  onHandleMouseMove = (event: MouseEvent) => {
+  public onHandleMouseMove = (event: MouseEvent) => {
     if (!this.resizing) return;
     const split = document.querySelector('.split') as HTMLElement;
     if (!split) return;
@@ -65,7 +257,7 @@ export class App implements OnInit, OnDestroy {
     this.editorWidth.set(percent);
   };
 
-  onHandleMouseUp = () => {
+  public onHandleMouseUp = () => {
     this.resizing = false;
     document.body.style.cursor = '';
     window.removeEventListener('mousemove', this.onHandleMouseMove);
@@ -73,12 +265,12 @@ export class App implements OnInit, OnDestroy {
   };
 
   // --- Zoom functionality ---
-  resetZoom() {
+  public resetZoom() {
     this.zoomLevel.set(1);
   }
 
   // Continuous zoom methods
-  startZoomIn() {
+  public startZoomIn() {
     if (this.isZooming) return;
 
     // Immediate zoom on mousedown
@@ -97,7 +289,7 @@ export class App implements OnInit, OnDestroy {
     }, this.continuousZoomInterval);
   }
 
-  startZoomOut() {
+  public startZoomOut() {
     if (this.isZooming) return;
 
     // Immediate zoom on mousedown
@@ -116,7 +308,7 @@ export class App implements OnInit, OnDestroy {
     }, this.continuousZoomInterval);
   }
 
-  stopZoom() {
+  public stopZoom() {
     if (this.zoomTimer) {
       clearInterval(this.zoomTimer);
       this.zoomTimer = null;
@@ -124,113 +316,19 @@ export class App implements OnInit, OnDestroy {
     this.isZooming = false;
   }
 
-  onNameChange(event: Event) {
+  public onNameChange(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.participantName.set(value);
-  }
-
-  mermaidText = signal<string>(
-    `sequenceDiagram\n    participant Alice\n    participant Bob\n    Alice->>Bob: Hello Bob, how are you?\n    Bob-->>Alice: I am good thanks!`
-  );
-  diagramSvg = signal<SafeHtml>('');
-
-  showParticipantModal = signal<boolean>(false);
-  participantName = signal<string>('');
-
-  // --- Draggable Add Participant dialog state and methods ---
-  participantDialogLeft = 240;
-  participantDialogTop = 120;
-  private draggingParticipantDialog = false;
-  private participantDragOffsetX = 0;
-  private participantDragOffsetY = 0;
-
-  showActionModal = signal<boolean>(false);
-  showReorderDialog = signal<boolean>(false);
-  // Reorder dialog data
-  reorderItems: Array<{ idx: number; text: string; raw: string }> = [];
-  private draggingReorderIndex: number | null = null;
-  private reorderDragOverIndex: number | null = null;
-
-  // --- Draggable Reorder Dialog state ---
-  reorderDialogLeft = 220;
-  reorderDialogTop = 140;
-  private draggingReorderDialog = false;
-  private reorderDialogDragOffsetX = 0;
-  private reorderDialogDragOffsetY = 0;
-
-  // Template bindings to read internal drag indices
-  get draggingReorderIndexPublic(): number | null {
-    return this.draggingReorderIndex;
-  }
-  get reorderDragOverIndexPublic(): number | null {
-    return this.reorderDragOverIndex;
-  }
-
-  actionFrom = signal<string>('');
-  actionTo = signal<string>('');
-  actionMessage = signal<string>('');
-  actionFieldBeingSet = signal<'from' | 'to'>('from');
-
-  // --- Draggable Add Action dialog state and methods ---
-  actionDialogLeft = typeof window !== 'undefined' ? (window.innerWidth - 400) / 2 : 200;
-  actionDialogTop = 280;
-  private draggingActionDialog = false;
-  private dragOffsetX = 0;
-  private dragOffsetY = 0;
-
-  get participants(): string[] {
-    // Extract participants from the mermaid text
-    const lines = this.mermaidText().split('\n');
-    return lines
-      .filter((line) => line.trim().startsWith('participant '))
-      .map((line) => line.trim().replace('participant ', '').trim());
-  }
-
-  constructor(private sanitizer: DomSanitizer, private cdr: ChangeDetectorRef) {
-    mermaid.initialize({ startOnLoad: false });
-    this.renderMermaid();
-    // Global Escape key handler to close dialogs
-    window.addEventListener('keydown', this.onGlobalKeyDown);
-
-    // Save to localStorage whenever mermaidText changes
-    effect(() => {
-      const text = this.mermaidText();
-      this.saveToLocalStorage(text);
-    });
-
-    // (edit dialog state initialized as class fields)
-  }
-
-  ngOnInit() {
-    // Load from localStorage on initialization if available
-    const savedText = this.loadFromLocalStorage();
-    if (savedText) {
-      this.mermaidText.set(savedText);
-      this.renderMermaid();
-    }
-  }
-
-  private loadFromLocalStorage(): string | null {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return localStorage.getItem('mermaid-sequence-diagram-text');
-    }
-    return null;
-  }
-
-  private saveToLocalStorage(text: string): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem('mermaid-sequence-diagram-text', text);
-    }
-  }
-
-  ngOnDestroy(): void {
-    window.removeEventListener('keydown', this.onGlobalKeyDown);
-    this.stopZoom(); // Clean up zoom timer
   }
 
   private onGlobalKeyDown = (ev: KeyboardEvent) => {
     if (ev.key === 'Escape' || ev.key === 'Esc') {
       let closed = false;
+
+      if (this.showDocumentSelector()) {
+        this.showDocumentSelector.set(false);
+        closed = true;
+      }
 
       if (this.showActionModal()) {
         this.closeActionModal();
@@ -263,7 +361,7 @@ export class App implements OnInit, OnDestroy {
     }
   };
 
-  onTextChange(event: Event) {
+  public onTextChange(event: Event) {
     const value = (event.target as HTMLTextAreaElement).value;
     this.mermaidText.set(value);
     this.renderMermaid();
@@ -274,7 +372,7 @@ export class App implements OnInit, OnDestroy {
     mermaid.parseError = () => {};
     try {
       const { svg } = await mermaid.render('theGraph', this.mermaidText());
-      const patched = this.patchDiagramSvg(svg);
+      const patched = patchDiagramSvg(svg);
       this.diagramSvg.set(this.sanitizer.bypassSecurityTrustHtml(patched));
     } catch (e) {
       this.diagramSvg.set(
@@ -283,7 +381,7 @@ export class App implements OnInit, OnDestroy {
     }
   }
 
-  addParticipant() {
+  public addParticipant() {
     this.participantName.set('');
     this.participantDialogLeft = 240;
     this.participantDialogTop = 120;
@@ -298,9 +396,9 @@ export class App implements OnInit, OnDestroy {
     this.showParticipantModal.set(false);
   }
 
-  submitParticipant() {
+  public submitParticipant() {
     const name = this.participantName().trim();
-    if (name && !this.participants.includes(name)) {
+    if (name && !this.participants().includes(name)) {
       const lines = this.mermaidText().split('\n');
 
       // Find the position to insert the new participant
@@ -341,17 +439,17 @@ export class App implements OnInit, OnDestroy {
     }, 0);
   }
 
-  closeEditParticipantDialog() {
+  public closeEditParticipantDialog() {
     this.showEditParticipantDialog.set(false);
     this.editParticipantOriginalName = null;
   }
 
-  onEditParticipantInput(event: Event) {
+  public onEditParticipantInput(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.editParticipantValue.set(value);
   }
 
-  submitEditParticipant() {
+  public submitEditParticipant() {
     const newName = this.editParticipantValue().trim();
     const originalName = this.editParticipantOriginalName;
 
@@ -361,7 +459,7 @@ export class App implements OnInit, OnDestroy {
     }
 
     // Check if new name already exists
-    if (this.participants.includes(newName)) {
+    if (this.participants().includes(newName)) {
       alert('A participant with this name already exists!');
       return;
     }
@@ -382,7 +480,7 @@ export class App implements OnInit, OnDestroy {
     this.closeEditParticipantDialog();
   }
 
-  deleteParticipant() {
+  public deleteParticipant() {
     const participantToDelete = this.editParticipantOriginalName;
     if (!participantToDelete) return;
 
@@ -428,7 +526,7 @@ export class App implements OnInit, OnDestroy {
     this.closeEditParticipantDialog();
   }
 
-  addAction() {
+  public addAction() {
     this.actionFrom.set('');
     this.actionTo.set('');
     this.actionMessage.set('');
@@ -438,15 +536,15 @@ export class App implements OnInit, OnDestroy {
     this.actionDialogTop = 280; // 30px below participant rectangles (estimated at ~250px)
     this.showActionModal.set(true);
   }
-  setActionField(field: 'from' | 'to') {
+  public setActionField(field: 'from' | 'to') {
     this.actionFieldBeingSet.set(field);
   }
 
-  closeActionModal() {
+  public closeActionModal() {
     this.showActionModal.set(false);
   }
 
-  submitAction() {
+  public submitAction() {
     const from = this.actionFrom();
     const to = this.actionTo();
     const message = this.actionMessage().trim();
@@ -457,7 +555,7 @@ export class App implements OnInit, OnDestroy {
     this.closeActionModal();
   }
 
-  openReorderDialog() {
+  public openReorderDialog() {
     // Build list of action lines from mermaidText
     const lines = this.mermaidText().split('\n');
     const actionIndices: number[] = [];
@@ -474,11 +572,11 @@ export class App implements OnInit, OnDestroy {
     this.showReorderDialog.set(true);
   }
 
-  closeReorderDialog() {
+  public closeReorderDialog() {
     this.showReorderDialog.set(false);
   }
 
-  onReorderDragStart(event: DragEvent, index: number) {
+  public onReorderDragStart(event: DragEvent, index: number) {
     if (!event.dataTransfer) return;
     event.dataTransfer.setData('text/plain', String(index));
     event.dataTransfer.effectAllowed = 'move';
@@ -488,11 +586,11 @@ export class App implements OnInit, OnDestroy {
   }
 
   // Template helper: whether a reorder drag is active
-  isReorderDragging(): boolean {
+  public isReorderDragging(): boolean {
     return this.draggingReorderIndex !== null;
   }
 
-  onReorderDragOver(event: DragEvent, targetIndex: number) {
+  public onReorderDragOver(event: DragEvent, targetIndex: number) {
     // Live move items while hovering over them
     event.preventDefault();
     if (this.draggingReorderIndex === null) return;
@@ -515,20 +613,20 @@ export class App implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onReorderDrop(event: DragEvent) {
+  public onReorderDrop(event: DragEvent) {
     event.preventDefault();
     this.draggingReorderIndex = null;
     this.reorderDragOverIndex = null;
     this.cdr.markForCheck();
   }
 
-  onReorderDragEnd(event: DragEvent) {
+  public onReorderDragEnd(event: DragEvent) {
     this.draggingReorderIndex = null;
     this.reorderDragOverIndex = null;
     this.cdr.markForCheck();
   }
 
-  applyReorder() {
+  public applyReorder() {
     // Map reorderItems back into mermaidText by replacing lines at recorded indices
     const lines = this.mermaidText().split('\n');
     const actionIndices = this.reorderItems.map((it) => it.idx).slice();
@@ -547,22 +645,22 @@ export class App implements OnInit, OnDestroy {
     this.closeReorderDialog();
   }
 
-  onActionFromChange(event: Event) {
+  public onActionFromChange(event: Event) {
     const value = (event.target as HTMLSelectElement).value;
     this.actionFrom.set(value);
   }
 
-  onActionToChange(event: Event) {
+  public onActionToChange(event: Event) {
     const value = (event.target as HTMLSelectElement).value;
     this.actionTo.set(value);
   }
 
-  onActionMessageChange(event: Event) {
+  public onActionMessageChange(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.actionMessage.set(value);
   }
 
-  onActionDialogHandleDown(event: MouseEvent) {
+  public onActionDialogHandleDown(event: MouseEvent) {
     event.preventDefault();
     this.draggingActionDialog = true;
     this.dragOffsetX = event.clientX - this.actionDialogLeft;
@@ -571,21 +669,21 @@ export class App implements OnInit, OnDestroy {
     window.addEventListener('mouseup', this.onActionDialogDragEnd);
   }
 
-  onActionDialogDragMove = (event: MouseEvent) => {
+  public onActionDialogDragMove = (event: MouseEvent) => {
     if (!this.draggingActionDialog) return;
     this.actionDialogLeft = event.clientX - this.dragOffsetX;
     this.actionDialogTop = event.clientY - this.dragOffsetY;
     this.cdr.markForCheck();
   };
 
-  onActionDialogDragEnd = () => {
+  public onActionDialogDragEnd = () => {
     this.draggingActionDialog = false;
     window.removeEventListener('mousemove', this.onActionDialogDragMove);
     window.removeEventListener('mouseup', this.onActionDialogDragEnd);
   };
 
   // --- Edit Participant Dialog Drag methods ---
-  onEditParticipantDialogHandleDown(event: MouseEvent) {
+  public onEditParticipantDialogHandleDown(event: MouseEvent) {
     event.preventDefault();
     this.draggingEditParticipantDialog = true;
     this.editParticipantDragOffsetX = event.clientX - this.editParticipantDialogLeft;
@@ -594,21 +692,21 @@ export class App implements OnInit, OnDestroy {
     window.addEventListener('mouseup', this.onEditParticipantDialogDragEnd);
   }
 
-  onEditParticipantDialogDragMove = (event: MouseEvent) => {
+  public onEditParticipantDialogDragMove = (event: MouseEvent) => {
     if (!this.draggingEditParticipantDialog) return;
     this.editParticipantDialogLeft = event.clientX - this.editParticipantDragOffsetX;
     this.editParticipantDialogTop = event.clientY - this.editParticipantDragOffsetY;
     this.cdr.markForCheck();
   };
 
-  onEditParticipantDialogDragEnd = () => {
+  public onEditParticipantDialogDragEnd = () => {
     this.draggingEditParticipantDialog = false;
     window.removeEventListener('mousemove', this.onEditParticipantDialogDragMove);
     window.removeEventListener('mouseup', this.onEditParticipantDialogDragEnd);
   };
 
   // --- Edit Action Message Dialog Drag methods ---
-  onEditMessageDialogHandleDown(event: MouseEvent) {
+  public onEditMessageDialogHandleDown(event: MouseEvent) {
     event.preventDefault();
     this.draggingEditMessageDialog = true;
     this.editMessageDragOffsetX = event.clientX - this.editMessageDialogLeft;
@@ -617,21 +715,21 @@ export class App implements OnInit, OnDestroy {
     window.addEventListener('mouseup', this.onEditMessageDialogDragEnd);
   }
 
-  onEditMessageDialogDragMove = (event: MouseEvent) => {
+  public onEditMessageDialogDragMove = (event: MouseEvent) => {
     if (!this.draggingEditMessageDialog) return;
     this.editMessageDialogLeft = event.clientX - this.editMessageDragOffsetX;
     this.editMessageDialogTop = event.clientY - this.editMessageDragOffsetY;
     this.cdr.markForCheck();
   };
 
-  onEditMessageDialogDragEnd = () => {
+  public onEditMessageDialogDragEnd = () => {
     this.draggingEditMessageDialog = false;
     window.removeEventListener('mousemove', this.onEditMessageDialogDragMove);
     window.removeEventListener('mouseup', this.onEditMessageDialogDragEnd);
   };
 
   // --- Add Participant Dialog Drag methods ---
-  onParticipantDialogHandleDown(event: MouseEvent) {
+  public onParticipantDialogHandleDown(event: MouseEvent) {
     event.preventDefault();
     this.draggingParticipantDialog = true;
     this.participantDragOffsetX = event.clientX - this.participantDialogLeft;
@@ -640,21 +738,21 @@ export class App implements OnInit, OnDestroy {
     window.addEventListener('mouseup', this.onParticipantDialogDragEnd);
   }
 
-  onParticipantDialogDragMove = (event: MouseEvent) => {
+  public onParticipantDialogDragMove = (event: MouseEvent) => {
     if (!this.draggingParticipantDialog) return;
     this.participantDialogLeft = event.clientX - this.participantDragOffsetX;
     this.participantDialogTop = event.clientY - this.participantDragOffsetY;
     this.cdr.markForCheck();
   };
 
-  onParticipantDialogDragEnd = () => {
+  public onParticipantDialogDragEnd = () => {
     this.draggingParticipantDialog = false;
     window.removeEventListener('mousemove', this.onParticipantDialogDragMove);
     window.removeEventListener('mouseup', this.onParticipantDialogDragEnd);
   };
 
   // --- Reorder Dialog Drag methods ---
-  onReorderDialogHandleDown(event: MouseEvent) {
+  public onReorderDialogHandleDown(event: MouseEvent) {
     event.preventDefault();
     this.draggingReorderDialog = true;
     this.reorderDialogDragOffsetX = event.clientX - this.reorderDialogLeft;
@@ -663,21 +761,21 @@ export class App implements OnInit, OnDestroy {
     window.addEventListener('mouseup', this.onReorderDialogDragEnd);
   }
 
-  onReorderDialogDragMove = (event: MouseEvent) => {
+  public onReorderDialogDragMove = (event: MouseEvent) => {
     if (!this.draggingReorderDialog) return;
     this.reorderDialogLeft = event.clientX - this.reorderDialogDragOffsetX;
     this.reorderDialogTop = event.clientY - this.reorderDialogDragOffsetY;
     this.cdr.markForCheck();
   };
 
-  onReorderDialogDragEnd = () => {
+  public onReorderDialogDragEnd = () => {
     this.draggingReorderDialog = false;
     window.removeEventListener('mousemove', this.onReorderDialogDragMove);
     window.removeEventListener('mouseup', this.onReorderDialogDragEnd);
   };
 
   // Called from the template after diagram is rendered
-  onDiagramClick(event: MouseEvent) {
+  public onDiagramClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
 
     if (!target) return;
@@ -775,73 +873,18 @@ export class App implements OnInit, OnDestroy {
     }, 0);
   }
 
-  patchDiagramSvg(svg: string): string {
-    let patched = svg;
-
-    // Add class to <text> elements that are participant labels
-    patched = patched.replace(
-      /(<text[^>]*data-id="actor-([^"]+)"[^>]*>)([^<]+)(<\/text>)/g,
-      (m: any, p1: any, p2: any, p3: any, p4: any) => {
-        if (p1.includes('class="')) {
-          return p1.replace('class="', 'class="participant-label ') + p3 + p4;
-        } else {
-          return p1.replace('<text', '<text class="participant-label"') + p3 + p4;
-        }
-      }
-    );
-
-    // Add class to <rect> elements that are actor-top or actor-bottom
-    patched = patched.replace(
-      /(<rect[^>]*class="[^"]*actor-(top|bottom)[^"]*"[^>]*>)/g,
-      (m: any, rectTag: string, actorType: string) => {
-        if (rectTag.includes('class="')) {
-          return rectTag.replace('class="', 'class="participant-rect ');
-        } else {
-          return rectTag.replace('<rect', '<rect class="participant-rect"');
-        }
-      }
-    );
-    // Add class and data-action-idx to message text elements (arrows)
-    // This regex matches <text ...>message</text> for arrows
-    let actionIdx = 0;
-    patched = patched.replace(
-      /(<text[^>]*>)([^<]+)(<\/text>)/g,
-      (m: any, p1: any, p2: any, p3: any) => {
-        // Only patch if this is likely a message (not a participant label)
-        if (p1.includes('participant-label')) return m;
-        // Heuristic: message text is not a number and not empty
-        if (/^\s*\d+\s*$/.test(p2) || !p2.trim()) return m;
-        // Add class and data-action-idx
-        if (p1.includes('class="')) {
-          return (
-            p1.replace('class="', `class="messageText `) +
-            `<tspan data-action-idx="${actionIdx++}">${p2}</tspan>` +
-            p3
-          );
-        } else {
-          return (
-            p1.replace('<text', `<text class="messageText"`) +
-            `<tspan data-action-idx="${actionIdx++}">${p2}</tspan>` +
-            p3
-          );
-        }
-      }
-    );
-    return patched;
-  }
-
   // --- Edit Action Message dialog logic ---
-  closeEditMessageDialog() {
+  public closeEditMessageDialog() {
     this.showEditMessageDialog.set(false);
     this.editMessageActionIndex = null;
   }
 
-  onEditMessageInput(event: Event) {
+  public onEditMessageInput(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.editMessageValue.set(value);
   }
 
-  submitEditMessage() {
+  public submitEditMessage() {
     if (this.editMessageActionIndex == null) return;
     const lines = this.mermaidText().split('\n');
     // Find all action lines (arrows with ':')
@@ -866,7 +909,7 @@ export class App implements OnInit, OnDestroy {
     this.closeEditMessageDialog();
   }
 
-  deleteAction() {
+  public deleteAction() {
     if (this.editMessageActionIndex == null) return;
 
     const lines = this.mermaidText().split('\n');
@@ -901,7 +944,7 @@ export class App implements OnInit, OnDestroy {
     this.closeEditMessageDialog();
   }
 
-  arrangeParticipants() {
+  public arrangeParticipants() {
     const lines = this.mermaidText().split('\n');
 
     // Find all explicitly declared participants
@@ -967,11 +1010,10 @@ export class App implements OnInit, OnDestroy {
     this.renderMermaid();
   }
 
-  async copyToClipboard() {
+  public async copyToClipboard() {
     try {
       await navigator.clipboard.writeText(this.mermaidText());
       // Optional: Show a brief success message
-      console.log('Diagram copied to clipboard');
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
       // Fallback for older browsers
@@ -989,23 +1031,21 @@ export class App implements OnInit, OnDestroy {
     textArea.select();
     try {
       document.execCommand('copy');
-      console.log('Diagram copied to clipboard (fallback)');
     } catch (err) {
       console.error('Fallback copy failed:', err);
     }
     document.body.removeChild(textArea);
   }
 
-  async pasteFromClipboard() {
+  public async pasteFromClipboard() {
     try {
       const clipboardText = await navigator.clipboard.readText();
-      if (clipboardText.trim().startsWith('sequenceDiagram')) {
-        this.mermaidText.set(clipboardText);
-        this.renderMermaid();
-        console.log('Diagram pasted from clipboard');
-      } else {
-        console.warn('Clipboard content does not start with "sequenceDiagram"');
+      if (!clipboardText.trim().startsWith('sequenceDiagram')) {
+        throw new Error('Clipboard content does not start with "sequenceDiagram"');
       }
+
+      this.mermaidText.set(clipboardText);
+      this.renderMermaid();
     } catch (err) {
       console.error('Failed to read from clipboard:', err);
       console.warn('Paste functionality requires HTTPS or localhost for security reasons');

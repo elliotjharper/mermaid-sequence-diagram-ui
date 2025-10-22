@@ -61,6 +61,67 @@
 
 <div class="container">
   <h1>Mermaid Sequence Diagram Editor</h1>
+
+  <!-- Document selector -->
+  <div class="document-bar">
+    <div class="document-selector-container">
+      <button class="document-selector-btn" (click)="toggleDocumentSelector()">
+        <span class="doc-icon">📄</span>
+        <span class="doc-name">{{ activeDocument?.name || 'No Document' }}</span>
+        <span class="doc-arrow">{{ showDocumentSelector() ? '▲' : '▼' }}</span>
+      </button>
+
+      <div *ngIf="showDocumentSelector()" class="document-dropdown">
+        <div class="document-list">
+          <div
+            *ngFor="let doc of documents()"
+            class="document-item"
+            [class.active]="doc.id === activeDocumentId()"
+          >
+            <div *ngIf="editingDocumentId !== doc.id" class="document-item-content">
+              <span class="doc-name" (click)="switchDocument(doc.id)">{{ doc.name }}</span>
+              <div class="document-actions">
+                <button
+                  class="doc-action-btn"
+                  (click)="startRenamingDocument(doc.id)"
+                  title="Rename"
+                >
+                  ✏️
+                </button>
+                <button
+                  class="doc-action-btn delete"
+                  (click)="deleteDocument(doc.id)"
+                  [disabled]="documents().length <= 1"
+                  title="Delete"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+
+            <form
+              *ngIf="editingDocumentId === doc.id"
+              class="document-rename-form"
+              (submit)="$event.preventDefault(); saveDocumentName()"
+            >
+              <input
+                id="docNameInput"
+                type="text"
+                [value]="editingDocumentName()"
+                (input)="onDocumentNameInput($event)"
+                (blur)="saveDocumentName()"
+                autocomplete="off"
+              />
+            </form>
+          </div>
+        </div>
+        <button class="new-document-btn" (click)="createNewDocument()">
+          <span>+ New Document</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="controls">
     <button (click)="addParticipant()">Add Participant</button>
     <button (click)="addAction()">Add Action</button>
@@ -173,8 +234,8 @@
           (dragover)="onReorderDragOver($event, i)"
           (dragend)="onReorderDragEnd($event)"
           (drop)="onReorderDrop($event)"
-          [class.dragging]="isReorderDragging() && i === draggingReorderIndexPublic"
-          [class.over]="reorderDragOverIndexPublic === i"
+          [class.dragging]="isReorderDragging() && i === draggingReorderIndex"
+          [class.over]="reorderDragOverIndex === i"
         >
           <span class="reorder-handle">☰</span>
           <span class="reorder-text">{{ item.text }}</span>
@@ -185,7 +246,7 @@
           class="reorder-end"
           (dragover)="onReorderDragOver($event, reorderItems.length)"
           (drop)="onReorderDrop($event)"
-          [class.dragover]="reorderDragOverIndexPublic === reorderItems.length"
+          [class.dragover]="reorderDragOverIndex === reorderItems.length"
         >
           <span class="reorder-text">Drop here to move to end</span>
         </li>
