@@ -151,6 +151,13 @@ export class App implements OnInit, OnDestroy {
   private draggingReorderIndex: number | null = null;
   private reorderDragOverIndex: number | null = null;
 
+  // --- Draggable Reorder Dialog state ---
+  reorderDialogLeft = 220;
+  reorderDialogTop = 140;
+  private draggingReorderDialog = false;
+  private reorderDialogDragOffsetX = 0;
+  private reorderDialogDragOffsetY = 0;
+
   // Template bindings to read internal drag indices
   get draggingReorderIndexPublic(): number | null {
     return this.draggingReorderIndex;
@@ -644,6 +651,29 @@ export class App implements OnInit, OnDestroy {
     this.draggingParticipantDialog = false;
     window.removeEventListener('mousemove', this.onParticipantDialogDragMove);
     window.removeEventListener('mouseup', this.onParticipantDialogDragEnd);
+  };
+
+  // --- Reorder Dialog Drag methods ---
+  onReorderDialogHandleDown(event: MouseEvent) {
+    event.preventDefault();
+    this.draggingReorderDialog = true;
+    this.reorderDialogDragOffsetX = event.clientX - this.reorderDialogLeft;
+    this.reorderDialogDragOffsetY = event.clientY - this.reorderDialogTop;
+    window.addEventListener('mousemove', this.onReorderDialogDragMove);
+    window.addEventListener('mouseup', this.onReorderDialogDragEnd);
+  }
+
+  onReorderDialogDragMove = (event: MouseEvent) => {
+    if (!this.draggingReorderDialog) return;
+    this.reorderDialogLeft = event.clientX - this.reorderDialogDragOffsetX;
+    this.reorderDialogTop = event.clientY - this.reorderDialogDragOffsetY;
+    this.cdr.markForCheck();
+  };
+
+  onReorderDialogDragEnd = () => {
+    this.draggingReorderDialog = false;
+    window.removeEventListener('mousemove', this.onReorderDialogDragMove);
+    window.removeEventListener('mouseup', this.onReorderDialogDragEnd);
   };
 
   // Called from the template after diagram is rendered

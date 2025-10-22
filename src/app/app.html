@@ -154,9 +154,10 @@
   <div
     *ngIf="showReorderDialog()"
     class="floating-dialog"
-    style="left: 220px; top: 140px; width: 420px"
+    [ngStyle]="{ left: reorderDialogLeft + 'px', top: reorderDialogTop + 'px' }"
+    style="width: 420px"
   >
-    <div class="floating-dialog-handle" style="cursor: default">
+    <div class="floating-dialog-handle" (mousedown)="onReorderDialogHandleDown($event)">
       <span>Reorder Actions</span>
       <button class="close-btn" (click)="closeReorderDialog()" type="button">×</button>
     </div>
