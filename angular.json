@@ -74,7 +74,7 @@
               ],
               "outputHashing": "all",
               "outputPath": "dist-github-pages",
-              "baseHref": "/mermaid-sequence-diagram-ui/browser/"
+              "baseHref": "/mermaid-sequence-diagram-ui/"
             },
             "development": {
               "optimization": false,
