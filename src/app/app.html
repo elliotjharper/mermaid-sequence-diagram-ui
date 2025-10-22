@@ -19,6 +19,31 @@
         autocomplete="off"
       />
     </div>
+    <div class="line-type-row">
+      <label>Line Type:</label>
+      <div class="radio-group">
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="lineType"
+            value="solid"
+            [checked]="editMessageLineType() === 'solid'"
+            (change)="onEditMessageLineTypeChange($event)"
+          />
+          Solid
+        </label>
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="lineType"
+            value="dotted"
+            [checked]="editMessageLineType() === 'dotted'"
+            (change)="onEditMessageLineTypeChange($event)"
+          />
+          Dotted
+        </label>
+      </div>
+    </div>
     <div class="modal-actions action-modal-actions">
       <button type="submit">Save</button>
       <button type="button" (click)="closeEditMessageDialog()">Cancel</button>

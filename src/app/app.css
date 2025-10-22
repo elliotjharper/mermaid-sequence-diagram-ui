@@ -374,6 +374,32 @@ h1 {
 	outline: none;
 	background: #fff;
 }
+
+.line-type-row {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.radio-group {
+	display: flex;
+	gap: 1.5rem;
+	margin-top: 0.1em;
+}
+
+.radio-option {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-weight: normal;
+	cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+	margin: 0;
+	cursor: pointer;
+}
+
 .action-modal-actions {
 	margin-top: 2.2rem;
 	gap: 1.2rem;
