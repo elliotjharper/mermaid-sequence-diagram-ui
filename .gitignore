@@ -1,5 +1,6 @@
 # Angular specific
 /dist/
+/dist-github-pages/
 /out-tsc/
 /tmp/
 /coverage/
