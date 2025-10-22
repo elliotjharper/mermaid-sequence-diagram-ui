@@ -1,2 +1,3 @@
 - Strictly no getters on typescript classes ever.
 - All functions/properties on classes must have an access level keyword.
+- No one line if statements. Always use {}.

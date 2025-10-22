@@ -1,305 +1,309 @@
 <div
-  *ngIf="showEditMessageDialog()"
-  class="floating-dialog"
-  [ngStyle]="{ left: editMessageDialogLeft + 'px', top: editMessageDialogTop + 'px' }"
-  style="min-width: 340px"
+    *ngIf="showEditMessageDialog()"
+    class="floating-dialog"
+    [ngStyle]="{ left: editMessageDialogLeft + 'px', top: editMessageDialogTop + 'px' }"
+    style="min-width: 340px"
 >
-  <div class="floating-dialog-handle" (mousedown)="onEditMessageDialogHandleDown($event)">
-    <span>Edit Action Message</span>
-    <button class="close-btn" (click)="closeEditMessageDialog()" type="button">×</button>
-  </div>
-  <form class="action-form" (submit)="$event.preventDefault(); submitEditMessage()">
-    <div class="action-message-row">
-      <label for="editMessage">Message:</label>
-      <input
-        id="editMessage"
-        type="text"
-        [value]="editMessageValue()"
-        (input)="onEditMessageInput($event)"
-        name="editMessage"
-        autocomplete="off"
-      />
+    <div class="floating-dialog-handle" (mousedown)="onEditMessageDialogHandleDown($event)">
+        <span>Edit Action Message</span>
+        <button class="close-btn" (click)="closeEditMessageDialog()" type="button">×</button>
     </div>
-    <div class="modal-actions action-modal-actions">
-      <button type="submit">Save</button>
-      <button type="button" (click)="closeEditMessageDialog()">Cancel</button>
-      <button type="button" class="delete-btn" (click)="deleteAction()">Delete Action</button>
-    </div>
-  </form>
+    <form class="action-form" (submit)="$event.preventDefault(); submitEditMessage()">
+        <div class="action-message-row">
+            <label for="editMessage">Message:</label>
+            <input
+                id="editMessage"
+                type="text"
+                [value]="editMessageValue()"
+                (input)="onEditMessageInput($event)"
+                name="editMessage"
+                autocomplete="off"
+            />
+        </div>
+        <div class="modal-actions action-modal-actions">
+            <button type="submit">Save</button>
+            <button type="button" (click)="closeEditMessageDialog()">Cancel</button>
+            <button type="button" class="delete-btn" (click)="deleteAction()">Delete Action</button>
+        </div>
+    </form>
 </div>
 
 <div
-  *ngIf="showEditParticipantDialog()"
-  class="floating-dialog"
-  [ngStyle]="{ left: editParticipantDialogLeft + 'px', top: editParticipantDialogTop + 'px' }"
+    *ngIf="showEditParticipantDialog()"
+    class="floating-dialog"
+    [ngStyle]="{ left: editParticipantDialogLeft + 'px', top: editParticipantDialogTop + 'px' }"
 >
-  <div class="floating-dialog-handle" (mousedown)="onEditParticipantDialogHandleDown($event)">
-    <span>Edit Participant</span>
-    <button class="close-btn" (click)="closeEditParticipantDialog()" type="button">×</button>
-  </div>
-  <form class="modal-form" (submit)="$event.preventDefault(); submitEditParticipant()">
-    <div class="form-field">
-      <label for="editParticipantInput">Participant name:</label>
-      <input
-        id="editParticipantInput"
-        type="text"
-        [value]="editParticipantValue()"
-        (input)="onEditParticipantInput($event)"
-        name="editParticipantInput"
-        autocomplete="off"
-      />
+    <div class="floating-dialog-handle" (mousedown)="onEditParticipantDialogHandleDown($event)">
+        <span>Edit Participant</span>
+        <button class="close-btn" (click)="closeEditParticipantDialog()" type="button">×</button>
     </div>
-    <div class="modal-actions">
-      <button type="submit">Save</button>
-      <button type="button" (click)="closeEditParticipantDialog()">Cancel</button>
-      <button type="button" class="delete-btn" (click)="deleteParticipant()">
-        Delete Participant
-      </button>
-    </div>
-  </form>
+    <form class="modal-form" (submit)="$event.preventDefault(); submitEditParticipant()">
+        <div class="form-field">
+            <label for="editParticipantInput">Participant name:</label>
+            <input
+                id="editParticipantInput"
+                type="text"
+                [value]="editParticipantValue()"
+                (input)="onEditParticipantInput($event)"
+                name="editParticipantInput"
+                autocomplete="off"
+            />
+        </div>
+        <div class="modal-actions">
+            <button type="submit">Save</button>
+            <button type="button" (click)="closeEditParticipantDialog()">Cancel</button>
+            <button type="button" class="delete-btn" (click)="deleteParticipant()">
+                Delete Participant
+            </button>
+        </div>
+    </form>
 </div>
 
 <div class="container">
-  <h1>Mermaid Sequence Diagram Editor</h1>
+    <h1>Mermaid Sequence Diagram Editor</h1>
 
-  <!-- Document selector -->
-  <div class="document-bar">
-    <div class="document-selector-container">
-      <button class="document-selector-btn" (click)="toggleDocumentSelector()">
-        <span class="doc-icon">📄</span>
-        <span class="doc-name">{{ activeDocument?.name || 'No Document' }}</span>
-        <span class="doc-arrow">{{ showDocumentSelector() ? '▲' : '▼' }}</span>
-      </button>
+    <div class="controls">
+        <div class="document-selector-container">
+            <button class="document-selector-btn" (click)="toggleDocumentSelector()">
+                <span class="doc-icon">📄</span>
+                <span class="doc-name">{{ activeDocument?.name || 'No Document' }}</span>
+                <span class="doc-arrow">{{ showDocumentSelector() ? '▲' : '▼' }}</span>
+            </button>
 
-      <div *ngIf="showDocumentSelector()" class="document-dropdown">
-        <div class="document-list">
-          <div
-            *ngFor="let doc of documents()"
-            class="document-item"
-            [class.active]="doc.id === activeDocumentId()"
-          >
-            <div *ngIf="editingDocumentId !== doc.id" class="document-item-content">
-              <span class="doc-name" (click)="switchDocument(doc.id)">{{ doc.name }}</span>
-              <div class="document-actions">
-                <button
-                  class="doc-action-btn"
-                  (click)="startRenamingDocument(doc.id)"
-                  title="Rename"
-                >
-                  ✏️
+            <div *ngIf="showDocumentSelector()" class="document-dropdown">
+                <div class="document-list">
+                    <div
+                        *ngFor="let doc of documents()"
+                        class="document-item"
+                        [class.active]="doc.id === activeDocumentId()"
+                    >
+                        <div *ngIf="editingDocumentId !== doc.id" class="document-item-content">
+                            <span class="doc-name" (click)="switchDocument(doc.id)">{{
+                                doc.name
+                            }}</span>
+                            <div class="document-actions">
+                                <button
+                                    class="doc-action-btn"
+                                    (click)="startRenamingDocument(doc.id)"
+                                    title="Rename"
+                                >
+                                    ✏️
+                                </button>
+                                <button
+                                    class="doc-action-btn delete"
+                                    (click)="deleteDocument(doc.id)"
+                                    [disabled]="documents().length <= 1"
+                                    title="Delete"
+                                >
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+
+                        <form
+                            *ngIf="editingDocumentId === doc.id"
+                            class="document-rename-form"
+                            (submit)="$event.preventDefault(); saveDocumentName()"
+                        >
+                            <input
+                                id="docNameInput"
+                                type="text"
+                                [value]="editingDocumentName()"
+                                (input)="onDocumentNameInput($event)"
+                                (blur)="saveDocumentName()"
+                                autocomplete="off"
+                            />
+                        </form>
+                    </div>
+                </div>
+                <button class="new-document-btn" (click)="createNewDocument()">
+                    <span>+ New Document</span>
                 </button>
-                <button
-                  class="doc-action-btn delete"
-                  (click)="deleteDocument(doc.id)"
-                  [disabled]="documents().length <= 1"
-                  title="Delete"
-                >
-                  🗑️
-                </button>
-              </div>
             </div>
-
-            <form
-              *ngIf="editingDocumentId === doc.id"
-              class="document-rename-form"
-              (submit)="$event.preventDefault(); saveDocumentName()"
-            >
-              <input
-                id="docNameInput"
-                type="text"
-                [value]="editingDocumentName()"
-                (input)="onDocumentNameInput($event)"
-                (blur)="saveDocumentName()"
-                autocomplete="off"
-              />
-            </form>
-          </div>
         </div>
-        <button class="new-document-btn" (click)="createNewDocument()">
-          <span>+ New Document</span>
-        </button>
-      </div>
-    </div>
-  </div>
 
-  <div class="controls">
-    <button (click)="addParticipant()">Add Participant</button>
-    <button (click)="addAction()">Add Action</button>
-    <button (click)="openReorderDialog()">Reorder Actions</button>
-    <button (click)="arrangeParticipants()">Arrange Participants</button>
-    <button (click)="copyToClipboard()">Copy</button>
-    <button (click)="pasteFromClipboard()">Paste</button>
-  </div>
-  <div
-    *ngIf="showParticipantModal()"
-    class="floating-dialog"
-    [ngStyle]="{ left: participantDialogLeft + 'px', top: participantDialogTop + 'px' }"
-  >
-    <div class="floating-dialog-handle" (mousedown)="onParticipantDialogHandleDown($event)">
-      <span>Add Participant</span>
-      <button class="close-btn" (click)="closeParticipantModal()" type="button">×</button>
+        <button (click)="addParticipant()">Add Participant</button>
+        <button (click)="addAction()">Add Action</button>
+        <button (click)="openReorderDialog()">Reorder Actions</button>
+        <button (click)="arrangeParticipants()">Arrange Participants</button>
+        <button (click)="copyToClipboard()">Copy</button>
+        <button (click)="pasteFromClipboard()">Paste</button>
     </div>
-    <form class="modal-form" (submit)="$event.preventDefault(); submitParticipant()">
-      <div class="form-field">
-        <label for="new">Participant name:</label>
-        <input
-          id="new"
-          type="text"
-          [value]="participantName()"
-          (input)="onNameChange($event)"
-          name="new"
-          autocomplete="off"
-        />
-      </div>
-      <div class="modal-actions">
-        <button type="submit">Add</button>
-        <button type="button" (click)="closeParticipantModal()">Cancel</button>
-      </div>
-    </form>
-  </div>
-
-  <div
-    *ngIf="showActionModal()"
-    class="floating-dialog"
-    [ngStyle]="{ left: actionDialogLeft + 'px', top: actionDialogTop + 'px' }"
-  >
-    <div class="floating-dialog-handle" (mousedown)="onActionDialogHandleDown($event)">
-      <span>Add Action</span>
-      <button class="close-btn" (click)="closeActionModal()" type="button">×</button>
-    </div>
-    <form class="action-form" (submit)="$event.preventDefault(); submitAction()">
-      <div class="action-fields-row">
-        <div class="action-field">
-          <label>From:</label>
-          <span
-            class="selected-participant"
-            [class.active]="actionFieldBeingSet() === 'from'"
-            (click)="setActionField('from')"
-          >
-            {{ actionFrom() || 'Click a name in the diagram' }}
-          </span>
-        </div>
-        <div class="action-field">
-          <label>To:</label>
-          <span
-            class="selected-participant"
-            [class.active]="actionFieldBeingSet() === 'to'"
-            (click)="setActionField('to')"
-          >
-            {{ actionTo() || 'Click a name in the diagram' }}
-          </span>
-        </div>
-      </div>
-      <div class="action-message-row">
-        <label for="message">Message:</label>
-        <input
-          id="message"
-          type="text"
-          [value]="actionMessage()"
-          (input)="onActionMessageChange($event)"
-          name="message"
-          autocomplete="off"
-        />
-      </div>
-      <div class="modal-actions action-modal-actions">
-        <button type="submit">Add</button>
-        <button type="button" (click)="closeActionModal()">Cancel</button>
-      </div>
-    </form>
-    <div class="modal-hint">
-      Click a participant name in the diagram to set <b>{{ actionFieldBeingSet() }}</b
-      >.
-    </div>
-  </div>
-
-  <div
-    *ngIf="showReorderDialog()"
-    class="floating-dialog"
-    [ngStyle]="{ left: reorderDialogLeft + 'px', top: reorderDialogTop + 'px' }"
-    style="width: 420px"
-  >
-    <div class="floating-dialog-handle" (mousedown)="onReorderDialogHandleDown($event)">
-      <span>Reorder Actions</span>
-      <button class="close-btn" (click)="closeReorderDialog()" type="button">×</button>
-    </div>
-    <div class="reorder-body">
-      <p class="modal-hint">
-        Drag items to reorder the actions. Confirm to update the diagram source.
-      </p>
-      <ul class="reorder-list">
-        <li
-          *ngFor="let item of reorderItems; let i = index"
-          draggable="true"
-          (dragstart)="onReorderDragStart($event, i)"
-          (dragover)="onReorderDragOver($event, i)"
-          (dragend)="onReorderDragEnd($event)"
-          (drop)="onReorderDrop($event)"
-          [class.dragging]="isReorderDragging() && i === draggingReorderIndex"
-          [class.over]="reorderDragOverIndex === i"
-        >
-          <span class="reorder-handle">☰</span>
-          <span class="reorder-text">{{ item.text }}</span>
-        </li>
-        <!-- explicit end-drop target to make appending easier (only visible while dragging) -->
-        <li
-          *ngIf="isReorderDragging()"
-          class="reorder-end"
-          (dragover)="onReorderDragOver($event, reorderItems.length)"
-          (drop)="onReorderDrop($event)"
-          [class.dragover]="reorderDragOverIndex === reorderItems.length"
-        >
-          <span class="reorder-text">Drop here to move to end</span>
-        </li>
-      </ul>
-      <div class="modal-actions">
-        <button type="button" (click)="applyReorder()">Apply</button>
-        <button type="button" (click)="closeReorderDialog()">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="split">
-    <textarea
-      class="editor"
-      [ngStyle]="{ width: editorWidth() + '%' }"
-      [value]="mermaidText()"
-      (input)="onTextChange($event)"
-    ></textarea>
-    <div class="split-handle" (mousedown)="onHandleMouseDown($event)"></div>
     <div
-      class="preview"
-      [ngStyle]="{ width: 100 - editorWidth() + '%' }"
-      (click)="onDiagramClick($event)"
+        *ngIf="showParticipantModal()"
+        class="floating-dialog"
+        [ngStyle]="{ left: participantDialogLeft + 'px', top: participantDialogTop + 'px' }"
     >
-      <div class="zoom-controls">
-        <button
-          class="zoom-btn"
-          [disabled]="zoomLevel() <= 0.25"
-          title="Zoom Out"
-          (mousedown)="startZoomOut()"
-          (mouseup)="stopZoom()"
-          (mouseleave)="stopZoom()"
-        >
-          −
-        </button>
-        <span class="zoom-level">{{ (zoomLevel() * 100).toFixed(0) }}%</span>
-        <button
-          class="zoom-btn"
-          [disabled]="zoomLevel() >= 3"
-          title="Zoom In"
-          (mousedown)="startZoomIn()"
-          (mouseup)="stopZoom()"
-          (mouseleave)="stopZoom()"
-        >
-          +
-        </button>
-        <button class="zoom-btn reset-zoom" (click)="resetZoom()" title="Reset Zoom">⌂</button>
-      </div>
-      <div class="diagram-viewport">
-        <div class="diagram-container" [ngStyle]="{ transform: 'scale(' + zoomLevel() + ')' }">
-          <div [innerHTML]="diagramSvg()"></div>
+        <div class="floating-dialog-handle" (mousedown)="onParticipantDialogHandleDown($event)">
+            <span>Add Participant</span>
+            <button class="close-btn" (click)="closeParticipantModal()" type="button">×</button>
         </div>
-      </div>
+        <form class="modal-form" (submit)="$event.preventDefault(); submitParticipant()">
+            <div class="form-field">
+                <label for="new">Participant name:</label>
+                <input
+                    id="new"
+                    type="text"
+                    [value]="participantName()"
+                    (input)="onNameChange($event)"
+                    name="new"
+                    autocomplete="off"
+                />
+            </div>
+            <div class="modal-actions">
+                <button type="submit">Add</button>
+                <button type="button" (click)="closeParticipantModal()">Cancel</button>
+            </div>
+        </form>
     </div>
-  </div>
+
+    <div
+        *ngIf="showActionModal()"
+        class="floating-dialog"
+        [ngStyle]="{ left: actionDialogLeft + 'px', top: actionDialogTop + 'px' }"
+    >
+        <div class="floating-dialog-handle" (mousedown)="onActionDialogHandleDown($event)">
+            <span>Add Action</span>
+            <button class="close-btn" (click)="closeActionModal()" type="button">×</button>
+        </div>
+        <form class="action-form" (submit)="$event.preventDefault(); submitAction()">
+            <div class="action-fields-row">
+                <div class="action-field">
+                    <label>From:</label>
+                    <span
+                        class="selected-participant"
+                        [class.active]="actionFieldBeingSet() === 'from'"
+                        (click)="setActionField('from')"
+                    >
+                        {{ actionFrom() || 'Click a name in the diagram' }}
+                    </span>
+                </div>
+                <div class="action-field">
+                    <label>To:</label>
+                    <span
+                        class="selected-participant"
+                        [class.active]="actionFieldBeingSet() === 'to'"
+                        (click)="setActionField('to')"
+                    >
+                        {{ actionTo() || 'Click a name in the diagram' }}
+                    </span>
+                </div>
+            </div>
+            <div class="action-message-row">
+                <label for="message">Message:</label>
+                <input
+                    id="message"
+                    type="text"
+                    [value]="actionMessage()"
+                    (input)="onActionMessageChange($event)"
+                    name="message"
+                    autocomplete="off"
+                />
+            </div>
+            <div class="modal-actions action-modal-actions">
+                <button type="submit">Add</button>
+                <button type="button" (click)="closeActionModal()">Cancel</button>
+            </div>
+        </form>
+        <div class="modal-hint">
+            Click a participant name in the diagram to set <b>{{ actionFieldBeingSet() }}</b
+            >.
+        </div>
+    </div>
+
+    <div
+        *ngIf="showReorderDialog()"
+        class="floating-dialog"
+        [ngStyle]="{ left: reorderDialogLeft + 'px', top: reorderDialogTop + 'px' }"
+        style="width: 420px"
+    >
+        <div class="floating-dialog-handle" (mousedown)="onReorderDialogHandleDown($event)">
+            <span>Reorder Actions</span>
+            <button class="close-btn" (click)="closeReorderDialog()" type="button">×</button>
+        </div>
+        <div class="reorder-body">
+            <p class="modal-hint">
+                Drag items to reorder the actions. Confirm to update the diagram source.
+            </p>
+            <ul class="reorder-list">
+                <li
+                    *ngFor="let item of reorderItems; let i = index"
+                    draggable="true"
+                    (dragstart)="onReorderDragStart($event, i)"
+                    (dragover)="onReorderDragOver($event, i)"
+                    (dragend)="onReorderDragEnd($event)"
+                    (drop)="onReorderDrop($event)"
+                    [class.dragging]="isReorderDragging() && i === draggingReorderIndex"
+                    [class.over]="reorderDragOverIndex === i"
+                >
+                    <span class="reorder-handle">☰</span>
+                    <span class="reorder-text">{{ item.text }}</span>
+                </li>
+                <!-- explicit end-drop target to make appending easier (only visible while dragging) -->
+                <li
+                    *ngIf="isReorderDragging()"
+                    class="reorder-end"
+                    (dragover)="onReorderDragOver($event, reorderItems.length)"
+                    (drop)="onReorderDrop($event)"
+                    [class.dragover]="reorderDragOverIndex === reorderItems.length"
+                >
+                    <span class="reorder-text">Drop here to move to end</span>
+                </li>
+            </ul>
+            <div class="modal-actions">
+                <button type="button" (click)="applyReorder()">Apply</button>
+                <button type="button" (click)="closeReorderDialog()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="split">
+        <textarea
+            class="editor"
+            [ngStyle]="{ width: editorWidth() + '%' }"
+            [value]="mermaidText()"
+            (input)="onTextChange($event)"
+        ></textarea>
+        <div class="split-handle" (mousedown)="onHandleMouseDown($event)"></div>
+        <div
+            class="preview"
+            [ngStyle]="{ width: 100 - editorWidth() + '%' }"
+            (click)="onDiagramClick($event)"
+        >
+            <div class="zoom-controls">
+                <button
+                    class="zoom-btn"
+                    [disabled]="zoomLevel() <= 0.25"
+                    title="Zoom Out"
+                    (mousedown)="startZoomOut()"
+                    (mouseup)="stopZoom()"
+                    (mouseleave)="stopZoom()"
+                >
+                    −
+                </button>
+                <span class="zoom-level">{{ (zoomLevel() * 100).toFixed(0) }}%</span>
+                <button
+                    class="zoom-btn"
+                    [disabled]="zoomLevel() >= 3"
+                    title="Zoom In"
+                    (mousedown)="startZoomIn()"
+                    (mouseup)="stopZoom()"
+                    (mouseleave)="stopZoom()"
+                >
+                    +
+                </button>
+                <button class="zoom-btn reset-zoom" (click)="resetZoom()" title="Reset Zoom">
+                    ⌂
+                </button>
+            </div>
+            <div class="diagram-viewport">
+                <div
+                    class="diagram-container"
+                    [ngStyle]="{ transform: 'scale(' + zoomLevel() + ')' }"
+                >
+                    <div [innerHTML]="diagramSvg()"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
