@@ -43,6 +43,7 @@ export class App implements OnInit, OnDestroy {
     private draggingEditMessageDialog = false;
     private editMessageDragOffsetX = 0;
     private editMessageDragOffsetY = 0;
+    public editMessageLineType = signal<'solid' | 'dotted'>('solid');
 
     // Edit Participant dialog state
     public showEditParticipantDialog = signal<boolean>(false);
@@ -839,6 +840,32 @@ export class App implements OnInit, OnDestroy {
                     // Extract the message text from the clicked element
                     this.editMessageActionIndex = idx;
                     this.editMessageValue.set(target.textContent?.trim() || '');
+
+                    // Detect current line type from the mermaid text
+                    const lines = this.mermaidText().split('\n');
+                    let actionIdx = 0;
+                    let currentLineType: 'solid' | 'dotted' = 'solid';
+
+                    for (let i = 0; i < lines.length; i++) {
+                        const trimmed = lines[i].trim();
+                        if (
+                            (trimmed.includes('->') || trimmed.includes('-->')) &&
+                            trimmed.includes(':')
+                        ) {
+                            if (actionIdx === idx) {
+                                // Check if this line uses dotted arrows
+                                if (trimmed.includes('-->>') || trimmed.includes('-->')) {
+                                    currentLineType = 'dotted';
+                                } else {
+                                    currentLineType = 'solid';
+                                }
+                                break;
+                            }
+                            actionIdx++;
+                        }
+                    }
+
+                    this.editMessageLineType.set(currentLineType);
                     this.showEditMessageDialog.set(true);
                     setTimeout(() => {
                         const input = document.getElementById('editMessage') as HTMLInputElement;
@@ -886,9 +913,16 @@ export class App implements OnInit, OnDestroy {
         this.editMessageValue.set(value);
     }
 
+    public onEditMessageLineTypeChange(event: Event) {
+        const value = (event.target as HTMLInputElement).value as 'solid' | 'dotted';
+        this.editMessageLineType.set(value);
+    }
+
     public submitEditMessage() {
         if (this.editMessageActionIndex == null) return;
         const lines = this.mermaidText().split('\n');
+        const selectedLineType = this.editMessageLineType();
+
         // Find all action lines (arrows with ':')
         let actionIdx = 0;
         for (let i = 0; i < lines.length; i++) {
@@ -899,6 +933,24 @@ export class App implements OnInit, OnDestroy {
                     const parts = lines[i].split(':');
                     if (parts.length > 1) {
                         parts[parts.length - 1] = ' ' + this.editMessageValue().trim();
+
+                        // Update arrow type based on line type selection
+                        const arrowPart = parts[0];
+                        let newArrowPart = arrowPart;
+
+                        if (selectedLineType === 'solid') {
+                            // Convert dotted to solid
+                            newArrowPart = newArrowPart.replace(/-->>>/g, '->>');
+                            newArrowPart = newArrowPart.replace(/-->/g, '->');
+                        } else {
+                            // Convert solid to dotted
+                            // First handle ->> to -->> (async arrows)
+                            newArrowPart = newArrowPart.replace(/(\w)->>(\w)/g, '$1-->>$2');
+                            // Then handle -> to --> (sync arrows), but avoid touching arrows that are already part of ->>/-->>
+                            newArrowPart = newArrowPart.replace(/(\w)->(\w)/g, '$1-->$2');
+                        }
+
+                        parts[0] = newArrowPart;
                         lines[i] = parts.join(':');
                     }
                     break;
