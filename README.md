@@ -10,6 +10,10 @@ A user-friendly UI for creating and editing Mermaid sequence diagrams. Available
 - Participant management
 - Action sequencing
 
+## Try latest published version in browser
+
+- https://elliotjharper.github.io/mermaid-sequence-diagram-ui/
+
 ## Development
 
 ### Prerequisites
